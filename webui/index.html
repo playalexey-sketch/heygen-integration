@@ -343,6 +343,11 @@ async function generate() {
     if (j.status === 'failed') {
       showStatus('error'); doneStage('❌ Ошибка');
       msgEl.textContent = j.error || j.message || 'Неизвестная ошибка';
+      if (j.detail) { msgEl.innerHTML = msgEl.textContent.replace(/\n/g,'<br>') +
+        '<br><br><div class="note"><b>Почему так:</b> генерация LTX-2 идёт на вашем ПК ' +
+        'с GPU и требует установки: <code>./setup_ltx2.sh</code>. В онлайн-песочнице GPU нет, ' +
+        'поэтому здесь видео собраться не может — запустите <code>run_webui.bat</code> на своём компьютере.</div>';
+      }
       btn.disabled = false; break;
     }
     if (j.status === 'dry_run') {

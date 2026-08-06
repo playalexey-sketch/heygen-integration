@@ -263,6 +263,9 @@ python run_webui.py
 | `LTX2_OUTPUT_DIR` | папка для готовых видео |
 | `LTX2_WORKDIR` | временная рабочая папка для загрузок |
 
+Полная структура — см. ниже. Для работы агента (как я разбираю ошибки и выбираю
+параметры) см. **[`OPERATIONS_LOG.md`](OPERATIONS_LOG.md)** — рабочий журнал/SOP.
+
 ---
 
 ## API Endpoints
@@ -328,6 +331,7 @@ heygen-integration/
 │   └── index.html         # Интерактивная HTML-форма генерации видео
 ├── run_webui.py           # Универсальный запуск сервера (из любой папки)
 ├── run_webui.bat          # Двойной клик для запуска на Windows
+├── OPERATIONS_LOG.md      # Рабочий журнал агента (SOP по разбору ошибок)
 └── utils/
     └── helpers.py         # Utilities
 ```

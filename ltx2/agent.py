@@ -58,6 +58,36 @@ DEFAULT_NEGATIVE_PROMPT = (
 )
 
 
+def _prereq_errors() -> str:
+    """Вернуть понятное описание невыполненных требований, либо пустую строку."""
+    missing = []
+
+    if not os.path.exists(LTX2_CHECKPOINT):
+        missing.append(f"нет весов LTX-2: {LTX2_CHECKPOINT}")
+    if not os.path.exists(LTX2_SPATIAL_UPSAMPLER):
+        missing.append(f"нет апскейлера: {LTX2_SPATIAL_UPSAMPLER}")
+    if not os.path.exists(LTX2_DISTILLED_LORA):
+        missing.append(f"нет distilled LoRA: {LTX2_DISTILLED_LORA}")
+    if not os.path.isdir(LTX2_GEMMA_ROOT):
+        missing.append(f"нет Gemma text-encoder: {LTX2_GEMMA_ROOT}")
+
+    try:
+        import torch  # noqa: PLC0415
+        if not torch.cuda.is_available():
+            missing.append("нет GPU (LTX-2 требует видеокарту NVIDIA с CUDA)")
+    except Exception:  # noqa: BLE001
+        missing.append("не установлен torch")
+
+    try:
+        import ltx_pipelines  # noqa: PLC0415, F401
+    except Exception:  # noqa: BLE001
+        missing.append("не установлен пакет ltx_pipelines (нужен setup_ltx2.sh)")
+
+    if not missing:
+        return ""
+    return "Не выполнены требования LTX-2:\n  • " + "\n  • ".join(missing)
+
+
 def _snap_frames(num_frames: int) -> int:
     """LTX-2 требует num_frames = 8*k + 1."""
     k = max(0, round((num_frames - 1) / 8))
@@ -215,9 +245,28 @@ def build_talking_video(
 
     env = dict(os.environ)
     env.setdefault("PYTHONUNBUFFERED", "1")
-    result = subprocess.run(cmd, env=env, cwd=os.getcwd())
+
+    # Проверяем предпосылки ДО запуска, чтобы выдать понятную ошибку.
+    prereq = _prereq_errors()
+    if prereq:
+        return {
+            "error": prereq,
+            "detail": "LTX-2 не запускался (не выполнены требования). "
+                      "Настройте на вашем ПК с GPU: ./setup_ltx2.sh, затем запустите локально.",
+            "audio_path": voice_wav,
+            "command": cmd,
+        }
+
+    result = subprocess.run(cmd, env=env, cwd=os.getcwd(), capture_output=True, text=True)
     if result.returncode != 0:
-        return {"error": f"LTX-2 завершился с кодом {result.returncode}", "audio_path": voice_wav, "command": cmd}
+        tail = (result.stderr or "").strip().splitlines()
+        detail = tail[-8:] if tail else []
+        return {
+            "error": f"LTX-2 завершился с кодом {result.returncode}",
+            "detail": "\n".join(detail) or result.stdout or "без подробностей",
+            "audio_path": voice_wav,
+            "command": cmd,
+        }
 
     if not os.path.exists(output_path):
         return {"error": "Видео не создано (нет выходного файла)", "audio_path": voice_wav, "command": cmd}

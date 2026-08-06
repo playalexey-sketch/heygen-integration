@@ -176,9 +176,12 @@ def _run_job(job_id: str, settings: dict) -> None:
             return
 
         if result.get("error"):
-            _set("failed", result["error"], status="failed")
+            detail = result.get("detail", "")
+            message = result["error"] + ("\n" + detail if detail else "")
+            _set("failed", message, status="failed")
             with _JOB_LOCK:
-                _JOBS[job_id]["error"] = result["error"]
+                _JOBS[job_id]["error"] = message
+                _JOBS[job_id]["detail"] = detail
             return
 
         _set("done", "Видео готово!", status="completed")
