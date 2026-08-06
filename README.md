@@ -223,6 +223,34 @@ python ltx2_agent.py --photo me.jpg --text "..." \
 Пути к весам задаются через переменные окружения:
 `LTX2_CHECKPOINT`, `LTX2_SPATIAL_UPSAMPLER`, `LTX2_DISTILLED_LORA`, `LTX2_GEMMA_ROOT`.
 
+### Веб-интерфейс (HTML-форма)
+
+Интерактивная HTML-форма для генерации без командной строки:
+
+```bash
+python -m webui.server
+# открыть в браузере: http://localhost:8001
+```
+
+Форма позволяет:
+* загрузить **фото** (обязательно), **голос** (аудио) и/или **текст**;
+* при желании — **клонировать голос** по образцу;
+* задать настройки видео: длительность, соотношение сторон (9:16/16:9/1:1),
+  fps, offload (none/cpu/disk), квантование (fp8-cast), силу привязки к фото;
+* нажать **«Генерация видео»** и следить за прогрессом;
+* по завершении **скачать видео**.
+
+Результат автоматически сохраняется в выходную папку на диске. По умолчанию
+это `./ltx2_output`, для Windows укажите в форме, например, `C:\ltx2_output`
+(или задайте переменную окружения `LTX2_OUTPUT_DIR`).
+
+| Переменная | Описание |
+|-----------|----------|
+| `HOST` | адрес сервера (по умолч. `0.0.0.0`) |
+| `PORT` | порт (по умолч. `8001`) |
+| `LTX2_OUTPUT_DIR` | папка для готовых видео |
+| `LTX2_WORKDIR` | временная рабочая папка для загрузок |
+
 ---
 
 ## API Endpoints
@@ -283,6 +311,9 @@ heygen-integration/
 ├── ltx2/
 │   ├── agent.py           # LTX-2 A2Vid orchestration
 │   └── tts.py             # Silero TTS + optional Coqui XTTS voice cloning
+├── webui/
+│   ├── server.py          # FastAPI: HTML-form + upload + background generation
+│   └── index.html         # Интерактивная HTML-форма генерации видео
 └── utils/
     └── helpers.py         # Utilities
 ```

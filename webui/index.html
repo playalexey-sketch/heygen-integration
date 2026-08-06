@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LTX-2 — Фото → Видео с аватаром</title>
+<style>
+  :root {
+    --bg:#0f1420; --panel:#1a2130; --panel2:#222c40; --line:#2e3a52;
+    --text:#e8ecf4; --muted:#8b96ab; --accent:#4f8cff; --accent2:#6ee7b7;
+    --danger:#f87171; --ok:#4ade80;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  }
+  .wrap { max-width:980px; margin:0 auto; padding:24px 20px 60px; }
+  header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  header .logo {
+    width:46px;height:46px;border-radius:12px; display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--accent),#7c5cff); font-size:24px;
+  }
+  header h1 { margin:0; font-size:22px; }
+  header p { margin:2px 0 0; color:var(--muted); font-size:13px; }
+  .card {
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:20px; margin-top:16px;
+  }
+  .card h2 { margin:0 0 14px; font-size:15px; color:var(--accent2); text-transform:uppercase; letter-spacing:.5px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media(max-width:720px){ .grid{grid-template-columns:1fr;} }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 6px; }
+  input[type=text], input[type=number], select, textarea {
+    width:100%; background:var(--panel2); color:var(--text);
+    border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    font-size:14px; outline:none;
+  }
+  textarea { resize:vertical; min-height:80px; }
+  input:focus, select:focus, textarea:focus { border-color:var(--accent); }
+  .row { display:flex; gap:10px; }
+  .row > div { flex:1; }
+  .drop {
+    border:2px dashed var(--line); border-radius:14px; padding:26px 16px;
+    text-align:center; color:var(--muted); cursor:pointer; transition:.15s;
+    background:var(--panel2);
+  }
+  .drop.hover, .drop.dragover { border-color:var(--accent); background:#26314a; color:var(--text); }
+  .drop .big { font-size:30px; }
+  .drop small { display:block; margin-top:6px; }
+  .drop.filled { border-style:solid; border-color:var(--ok); color:var(--ok); }
+  .drop input[type=file] { display:none; }
+  .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5; }
+  .primary {
+    width:100%; margin-top:22px; padding:15px; font-size:16px; font-weight:600;
+    border:none; border-radius:12px; cursor:pointer; color:#0b1020;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+  }
+  .primary:disabled { opacity:.5; cursor:not-allowed; }
+  .status {
+    margin-top:18px; padding:14px 16px; border-radius:12px; background:var(--panel2);
+    border:1px solid var(--line); display:none;
+  }
+  .status.show { display:block; }
+  .status .stage { font-weight:600; }
+  .status .bar-wrap { height:10px; background:#0d1220; border-radius:8px; margin:12px 0; overflow:hidden; }
+  .status .bar { height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .6s; }
+  .status.done { border-color:var(--ok); }
+  .status.error { border-color:var(--danger); }
+  .result { margin-top:12px; }
+  .result a.dl {
+    display:inline-block; padding:11px 18px; border-radius:10px; font-weight:600;
+    background:var(--ok); color:#06231a; text-decoration:none;
+  }
+  .spinner { display:inline-block; width:14px;height:14px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite; vertical-align:-2px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .badge { font-size:12px; padding:3px 8px; border-radius:6px; background:var(--line); color:var(--text); }
+  .note { font-size:12px; color:var(--muted); background:#182034; border:1px solid var(--line); padding:10px 12px; border-radius:10px; margin-top:14px; line-height:1.6; }
+  .switch { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13px; color:var(--muted); }
+  .switch input { width:auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🎬</div>
+    <div>
+      <h1>LTX-2 — Фото → Видео с цифровым аватаром</h1>
+      <p>Загрузите фото человека, голос и текст — получите видео, где он говорит</p>
+    </div>
+  </header>
+
+  <!-- Компоненты -->
+  <div class="card">
+    <h2>📄 Компоненты</h2>
+    <div class="grid">
+      <div>
+        <label>Фото человека (обязательно)</label>
+        <div class="drop" id="drop-photo" onclick="pick('photo')">
+          <div class="big">🖼️</div>
+          <div>Нажмите или перетащите фото</div>
+          <small>PNG / JPG, портрет</small>
+          <input type="file" id="photo" accept="image/*">
+        </div>
+        <div class="hint" id="photo-name"></div>
+      </div>
+      <div>
+        <label>Голос — озвучка (аудио)</label>
+        <div class="drop" id="drop-audio" onclick="pick('audio')">
+          <div class="big">🎙️</div>
+          <div>Загрузите аудио-дорожку</div>
+          <small>mp3 / wav, ~15 сек. (необязательно)</small>
+          <input type="file" id="audio" accept="audio/*">
+        </div>
+        <div class="hint" id="audio-name"></div>
+      </div>
+      <div>
+        <label>Или голос для клонирования (образец)</label>
+        <div class="drop" id="drop-vref" onclick="pick('vref')">
+          <div class="big">🎛️</div>
+          <div>Загрузите образец голоса (необязательно)</div>
+          <small>mp3 / wav, 1–2 мин</small>
+          <input type="file" id="vref" accept="audio/*">
+        </div>
+        <div class="hint" id="vref-name"></div>
+        <div class="switch">
+          <input type="checkbox" id="clone-voice">
+          <label for="clone-voice" style="margin:0">Клонировать голос из образца</label>
+        </div>
+      </div>
+      <div>
+        <label>Текст, который скажет человек на фото</label>
+        <textarea id="text" placeholder="Я родилась 05 февраля 1987 года и я красотка"></textarea>
+        <div class="hint">Если загружено аудио — аватар повторит его. Иначе текст озвучится Silero TTS.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Настройки видео -->
+  <div class="card">
+    <h2>⚙️ Настройки видео</h2>
+    <div class="grid">
+      <div>
+        <label>Длительность (сек)</label>
+        <input type="number" id="duration" value="15" min="5" max="120">
+      </div>
+      <div>
+        <label>Соотношение сторон</label>
+        <select id="aspect">
+          <option value="portrait">9:16 — вертикально (Reels/Shorts)</option>
+          <option value="landscape">16:9 — горизонтально</option>
+          <option value="square">1:1 — квадрат</option>
+        </select>
+      </div>
+      <div>
+        <label>Разрешение (явное, делится на 64)</label>
+        <div class="row">
+          <div><input type="number" id="width" value="0" placeholder="ширина (0=авто)"></div>
+          <div><input type="number" id="height" value="0" placeholder="высота (0=авто)"></div>
+        </div>
+      </div>
+      <div>
+        <label>Кадров в секунду</label>
+        <input type="number" id="fps" value="24" step="1">
+      </div>
+      <div>
+        <label>VRAM / offload (для слабых GPU)</label>
+        <select id="offload">
+          <option value="none">none — всё в VRAM</option>
+          <option value="cpu">cpu — веса в ОЗУ</option>
+          <option value="disk">disk — веса с диска</option>
+        </select>
+      </div>
+      <div>
+        <label>Квантование (снижает VRAM)</label>
+        <select id="quantization">
+          <option value="">— нет —</option>
+          <option value="fp8-cast">fp8-cast</option>
+          <option value="fp8-scaled-mm">fp8-scaled-mm</option>
+        </select>
+      </div>
+      <div>
+        <label>Сила привязки к фото (0–1)</label>
+        <input type="number" id="image-strength" value="0.8" min="0" max="1" step="0.05">
+      </div>
+      <div>
+        <label>Silero голос (если используется текст)</label>
+        <select id="tts-speaker">
+          <option value="aidar">aidar (муж.)</option>
+          <option value="baya">baya (жен.)</option>
+          <option value="kseniya">kseniya (жен.)</option>
+          <option value="xenia">xenia (жен.)</option>
+          <option value="eugene">eugene (муж.)</option>
+        </select>
+      </div>
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Выходная папка на диске (оставьте пустым для папки по умолчанию)</label>
+      <input type="text" id="output-dir" placeholder='C:\ltx2_output   (или оставьте пусто: ./ltx2_output)'>
+    </div>
+  </div>
+
+  <button class="primary" id="generate" onclick="generate()">🚀 Генерация видео</button>
+
+  <div class="status" id="status">
+    <div class="stage" id="stage"><span class="spinner"></span> Готовим…</div>
+    <div class="bar-wrap"><div class="bar" id="bar"></div></div>
+    <div id="message" class="hint" style="margin:0"></div>
+    <div class="result" id="result"></div>
+  </div>
+
+  <div class="note">
+    <b>Важно:</b> генерация LTX-2 выполняется на вашем компьютере с GPU и может занять
+    несколько минут. Файл сохранится в выходную папку (для Windows — например
+    <code>C:\ltx2_output</code>). Убедитесь, что LTX-2 установлен —
+    <code>./setup_ltx2.sh</code> (см. README).
+  </div>
+</div>
+
+<script>
+function pick(id) {
+  const el = document.getElementById(id);
+  el.click();
+}
+function bindDrop(dropId, inputId, nameId) {
+  const drop = document.getElementById(dropId);
+  const input = document.getElementById(inputId);
+  const nameEl = document.getElementById(nameId);
+
+  function setFile(f) {
+    if (!f) return;
+    drop.classList.add('filled');
+    nameEl.textContent = '✓ ' + f.name + '  (' + (f.size/1024/1024).toFixed(1) + ' МБ)';
+    drop.querySelectorAll('div')[1].textContent = f.name;
+  }
+  input.addEventListener('change', () => setFile(input.files[0]));
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault(); drop.classList.remove('dragover');
+    if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; setFile(input.files[0]); }
+  });
+}
+bindDrop('drop-photo','photo','photo-name');
+bindDrop('drop-audio','audio','audio-name');
+bindDrop('drop-vref','vref','vref-name');
+
+const statusEl = document.getElementById('status');
+const stageEl = document.getElementById('stage');
+const msgEl = document.getElementById('message');
+const barEl = document.getElementById('bar');
+const resultEl = document.getElementById('result');
+const btn = document.getElementById('generate');
+
+function showStatus(cls) {
+  statusEl.classList.add('show');
+  if (cls) { statusEl.className = 'status show ' + cls; }
+}
+function setStage(text, pct) {
+  stageEl.innerHTML = '<span class="spinner"></span> ' + text;
+  barEl.style.width = (pct||0) + '%';
+  msgEl.textContent = '';
+  resultEl.innerHTML = '';
+}
+function doneStage(text) {
+  stageEl.innerHTML = text;
+  barEl.style.width = '100%';
+}
+
+async function generate() {
+  const fd = new FormData();
+  const photo = document.getElementById('photo').files[0];
+  const audio = document.getElementById('audio').files[0];
+  const vref = document.getElementById('vref').files[0];
+
+  if (!photo) { alert('Загрузите фото человека.'); return; }
+  const text = document.getElementById('text').value.trim();
+  if (!audio && !text) { alert('Загрузите голос (аудио) или введите текст.'); return; }
+
+  fd.append('photo', photo);
+  if (audio) fd.append('audio', audio);
+  if (vref) fd.append('voice_reference', vref);
+  fd.append('text', text);
+  fd.append('clone_voice', document.getElementById('clone-voice').checked ? 'true':'false');
+  fd.append('tts_speaker', document.getElementById('tts-speaker').value);
+  fd.append('duration', document.getElementById('duration').value);
+  fd.append('fps', document.getElementById('fps').value);
+  fd.append('aspect', document.getElementById('aspect').value);
+  fd.append('width', document.getElementById('width').value || '0');
+  fd.append('height', document.getElementById('height').value || '0');
+  fd.append('image_strength', document.getElementById('image-strength').value);
+  fd.append('offload', document.getElementById('offload').value);
+  fd.append('quantization', document.getElementById('quantization').value);
+  fd.append('output_dir', document.getElementById('output-dir').value.trim());
+
+  btn.disabled = true;
+  showStatus(); setStage('Отправка файлов…', 5);
+
+  let resp;
+  try {
+    resp = await fetch('/api/generate', { method:'POST', body: fd });
+  } catch (e) {
+    showStatus('error'); doneStage('❌ Нет соединения с сервером'); msgEl.textContent = String(e); btn.disabled=false; return;
+  }
+  if (!resp.ok) {
+    let t = await resp.text().catch(()=> '');
+    showStatus('error'); doneStage('❌ Ошибка'); msgEl.textContent = t; btn.disabled=false; return;
+  }
+  const data = await resp.json();
+  const jobId = data.job_id;
+
+  // Опрос статуса
+  let currentStage = '';
+  while (true) {
+    await new Promise(r => setTimeout(r, 2000));
+    let j;
+    try {
+      const r = await fetch('/api/jobs/' + jobId);
+      j = await r.json();
+    } catch (e) { msgEl.textContent = 'Проверка статуса…'; continue; }
+
+    if (j.stage && j.stage !== currentStage) {
+      currentStage = j.stage;
+      const labels = {
+        queued:'⏳ В очереди…',
+        voiceover:'🔊 Генерирую озвучку…',
+        running:'🎬 Генерирую видео (LTX-2)… это может занять несколько минут',
+        done:'✅ Видео готово!',
+        failed:'❌ Ошибка генерации',
+        dry_run:'📄 Режим dry-run'
+      };
+      setStage(labels[j.stage] || j.message || j.stage, j.stage==='running' ? 30 : (j.stage==='done'?100:10));
+      if (j.stage==='running') { barEl.style.width='30%'; }
+      msgEl.textContent = j.message || '';
+    }
+
+    if (j.status === 'completed') {
+      showStatus('done'); doneStage('✅ Видео готово и сохранено!');
+      resultEl.innerHTML = '<a class="dl" href="' + j.output_url + '" download>⬇️ Скачать видео</a>' +
+        (j.output_path ? '<div class="hint">Сохранено: ' + j.output_path + '</div>' : '');
+      btn.disabled = false; break;
+    }
+    if (j.status === 'failed') {
+      showStatus('error'); doneStage('❌ Ошибка');
+      msgEl.textContent = j.error || j.message || 'Неизвестная ошибка';
+      btn.disabled = false; break;
+    }
+    if (j.status === 'dry_run') {
+      showStatus('dry_run'); doneStage('📄 Команда (dry-run)');
+      resultEl.innerHTML = '<pre style="font-size:11px;overflow:auto">' + (j.command||[]).join(' \\\n') + '</pre>';
+      btn.disabled = false; break;
+    }
+  }
+}
+</script>
+</body>
+</html>

@@ -51,3 +51,7 @@ downloads/
 models/
 LTX-2/
 *.safetensors
+
+# WebUI work/uploads
+ltx2_work/
+ltx2_output/
