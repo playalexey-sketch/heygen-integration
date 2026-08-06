@@ -263,6 +263,44 @@ python run_webui.py
 | `LTX2_OUTPUT_DIR` | папка для готовых видео |
 | `LTX2_WORKDIR` | временная рабочая папка для загрузок |
 
+---
+
+## ☁️ Развёртывание в облаке с GPU
+
+Готовый деплой-пакет — в папке **`deploy/`**. Он позволяет поднять веб-интерфейс
+на облачной GPU-машине (RunPod, Vast.ai, Modal, Lightning.ai, любой GPU-инстанс),
+чтобы генерация видео работала **по ссылке без вашей видеокарты**.
+
+**Быстрый старт (на любой GPU-машине):**
+
+```bash
+cd heygen-integration
+bash deploy/quick_start.sh      # проверит GPU, поставит зависимости, скачает веса, запустит
+```
+
+**Либо Docker (GPU-инстанс):**
+
+```bash
+docker compose -f deploy/docker-compose.yml up --build
+# или
+docker build -f deploy/Dockerfile -t ltx2-webui .
+docker run --gpus all -p 8001:8001 -v $PWD/models:/app/models ltx2-webui
+```
+
+**Пошаговые гайды по платформам — см. [`deploy/GUIDE.md`](deploy/GUIDE.md):**
+
+| Платформа | Файл | Когда |
+|-----------|------|-------|
+| RunPod | `deploy/runpod.md` | Serverless, просто |
+| Vast.ai | `deploy/vast.md` | Дёшево, подежная |
+| Modal | `deploy/modal.md` | По-запросная генерация |
+| Lightning.ai | `deploy/lightning.md` | Ноутбуки с GPU |
+
+**Ключевые шаги:** скачать веса (`deploy/download_models.sh`, нужен HF-токен),
+указать пути в `deploy/env.example`, запустить. Рекомендуемый GPU — ≥40 ГБ VRAM.
+
+---
+
 Полная структура — см. ниже. Для работы агента (как я разбираю ошибки и выбираю
 параметры) см. **[`OPERATIONS_LOG.md`](OPERATIONS_LOG.md)** — рабочий журнал/SOP.
 
@@ -332,6 +370,15 @@ heygen-integration/
 ├── run_webui.py           # Универсальный запуск сервера (из любой папки)
 ├── run_webui.bat          # Двойной клик для запуска на Windows
 ├── OPERATIONS_LOG.md      # Рабочий журнал агента (SOP по разбору ошибок)
+├── deploy/                # Пакет для облачного GPU-деплоя
+│   ├── Dockerfile         #   GPU-контейнер (CUDA 12 + PyTorch)
+│   ├── docker-compose.yml #   Compose для GPU-инстанса
+│   ├── GUIDE.md           #   Главный гайд развёртывания
+│   ├── download_models.sh #   Скачивание весов LTX-2.3
+│   ├── quick_start.sh     #   Быстрый старт на GPU-машине
+│   ├── env.example        #   Переменные окружения
+│   ├── runpod.md / vast.md / modal.md / lightning.md
+│   └── .dockerignore
 └── utils/
     └── helpers.py         # Utilities
 ```

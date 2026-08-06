@@ -1,0 +1,16 @@
+# Не копируем в образ тяжёлое/служебное
+.venv/
+venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+models/
+LTX-2/
+*.safetensors
+ltx2_work/
+ltx2_output/
+deploy/.env
+*.mp4
+*.wav
+*.mp3

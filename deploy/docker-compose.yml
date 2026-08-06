@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────────────────────
+#  LTX-2 photo→video agent — docker-compose для облачного GPU
+#
+#  Перед запуском:
+#   1) Скопируйте .env из deploy/env.example в deploy/.env
+#   2) Загрузите веса LTX-2 в ./models (см. README / deploy/GUIDE.md)
+#   3) docker compose up --build
+# ─────────────────────────────────────────────────────────────
+
+services:
+  ltx2-webui:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: ltx2-webui:latest
+    container_name: ltx2-webui
+    runtime: nvidia            # доступ к GPU
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8001"
+      LTX2_OUTPUT_DIR: /app/ltx2_output
+      LTX2_WORKDIR: /app/ltx2_work
+      # При необходимости переопределите пути к весам:
+      # LTX2_CHECKPOINT: /app/models/ltx-2.3/ltx-2.3-22b-dev.safetensors
+      # LTX2_SPATIAL_UPSAMPLER: /app/models/ltx-2.3/ltx-2.3-spatial-upscaler-x2-1.1.safetensors
+      # LTX2_DISTILLED_LORA: /app/models/ltx-2.3/ltx-2.3-22b-distilled-lora-384-1.1.safetensors
+      # LTX2_GEMMA_ROOT: /app/models/gemma-3-12b
+    ports:
+      - "8001:8001"
+    volumes:
+      # Монтируем веса модели и выходную папку из хоста
+      - ../models:/app/models:ro
+      - ../ltx2_output:/app/ltx2_output
+      - ../ltx2_work:/app/ltx2_work
+    restart: unless-stopped
+    shm_size: "16g"
