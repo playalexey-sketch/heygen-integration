@@ -65,13 +65,21 @@
     border:none; border-radius:10px; padding:0 22px; font-size:15px; font-weight:600; cursor:pointer;
   }
   button:disabled { opacity:.5; cursor:not-allowed; }
+  button.small { padding:6px 12px; font-size:13px; }
+  .hintbar {
+    display:none; padding:10px 20px; background:var(--panel);
+    border-top:1px solid var(--line); font-size:13px; color:var(--muted);
+  }
+  .hintbar.show { display:block; }
 </style>
 </head>
 <body>
 <header>
   <div class="logo">🧠</div>
-  <h1>Hermes — локальный чат</h1>
-  <select id="model" title="Модель"></select>
+  <h1>Локальный чат (Hermes / Qwen)</h1>
+  <select id="model" title="Выберите модель"></select>
+  <button id="install-btn" type="button" title="Установить выбранную модель" style="padding:6px 12px; font-size:13px;">⬇ Установить</button>
+  <input id="custom-model" placeholder="или своё имя модели" style="width:170px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:13px; outline:none;">
   <div class="status"><span class="dot" id="dot"></span><span id="status">проверка…</span></div>
 </header>
 
@@ -81,6 +89,7 @@
   <textarea id="input" rows="1" placeholder="Спросите что-нибудь…"></textarea>
   <button id="send" type="submit">➤</button>
 </form>
+<div class="hintbar" id="hintbar"></div>
 
 <script>
 const chatEl = document.getElementById('chat');
@@ -90,6 +99,9 @@ const sendBtn = document.getElementById('send');
 const modelEl = document.getElementById('model');
 const dotEl = document.getElementById('dot');
 const statusEl = document.getElementById('status');
+const installBtn = document.getElementById('install-btn');
+const hintbarEl = document.getElementById('hintbar');
+const customModelEl = document.getElementById('custom-model');
 
 let history = [];
 
@@ -116,27 +128,83 @@ function esc(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// Загрузка моделей и статус Ollama
-(async function init() {
+function showHint(msg) {
+  hintbarEl.textContent = msg;
+  hintbarEl.classList.add('show');
+}
+
+async function refreshModels() {
   try {
     const r = await fetch(API_BASE + '/models');
     const d = await r.json();
-    d.models.forEach(mm => {
-      const o = document.createElement('option');
-      o.value = mm;
-      o.textContent = mm + (d.installed.includes(mm) ? ' ✓ установлена' : '');
-      modelEl.appendChild(o);
-    });
+    // очистить
+    modelEl.innerHTML = '';
     if (d.ollama_up) {
       dotEl.classList.add('ok');
       statusEl.textContent = 'Ollama работает';
     } else {
-      statusEl.textContent = 'Ollama не запущен — см. install_hermes.bat';
+      dotEl.classList.remove('ok');
+      statusEl.textContent = 'Ollama не запущен';
+      showHint('Ollama не отвечает. Убедитесь, что сервис ollama запущен (docker compose).');
+      return;
+    }
+    // установленные — сверху
+    const installed = d.installed || [];
+    installed.forEach(mm => addOption(mm, ' ✓ установлена'));
+    // каталог — ниже (только не установленные)
+    (d.catalog || []).forEach(mm => {
+      if (!installed.includes(mm)) addOption(mm, ' (не установлена)');
+    });
+    if (!installed.length) {
+      showHint('Нет установленных моделей. Выберите из списка и нажмите «⬇ Установить».');
+    } else {
+      showHint('');
+      hintbarEl.classList.remove('show');
     }
   } catch(e) {
     statusEl.textContent = 'нет связи с сервером';
   }
-})();
+}
+
+function addOption(value, suffix) {
+  const o = document.createElement('option');
+  o.value = value;
+  o.textContent = value + suffix;
+  modelEl.appendChild(o);
+}
+
+// Установить выбранную модель (или введённую вручную)
+installBtn.addEventListener('click', async () => {
+  const custom = customModelEl.value.trim();
+  const model = custom || modelEl.value;
+  if (!model) return;
+  installBtn.disabled = true;
+  showHint('⏳ Устанавливаю ' + model + '… это может занять несколько минут.');
+  try {
+    const r = await fetch(API_BASE + '/pull', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({model: model})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showHint('✅ ' + model + ' установлена. Можете отправлять сообщения.');
+      customModelEl.value = '';
+      await refreshModels();
+      modelEl.value = model;
+    } else {
+      showHint('❌ Ошибка установки: ' + (d.error || r.status));
+    }
+  } catch(e) {
+    showHint('❌ Нет связи с сервером: ' + e);
+  }
+  installBtn.disabled = false;
+});
+
+customModelEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); installBtn.click(); }
+});
+
+(async function init() { await refreshModels(); })();
 
 formEl.addEventListener('submit', async (e) => {
   e.preventDefault();

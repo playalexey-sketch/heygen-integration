@@ -71,7 +71,21 @@ async def env_status() -> dict:
 # В Docker: OLLAMA_URL=http://ollama:11434 (сервис из docker-compose).
 # Локально:  OLLAMA_URL=http://127.0.0.1:11434
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
-HERMES_MODELS = ["hermes3:3b", "hermes3:8b", "hermes3:70b", "hermes3:405b"]
+
+# Популярные локальные LLM, которые можно доустановить прямо из чата.
+# Интерфейс также автоматически показывает ВСЕ уже установленные модели.
+MODEL_CATALOG = [
+    "hermes3:8b",   # Nous Research Hermes 3 (по умолчанию)
+    "hermes3:3b",
+    "hermes3:70b",
+    "qwen3:8b",     # Qwen 3 (отлично для русского, Apache 2.0)
+    "qwen3:4b",
+    "qwen3:1.7b",
+    "llama3.1:8b",
+    "gemma2:9b",
+    "mistral:7b",
+    "phi3:mini",
+]
 _HERMES_HTML = Path(__file__).with_name("..").joinpath("hermes", "chat.html")
 
 
@@ -82,15 +96,25 @@ async def hermes_chat() -> str:
     return p.read_text(encoding="utf-8")
 
 
-@app.get("/hermes/api/models")
-async def hermes_models() -> dict:
-    """Список моделей Hermes + доступность Ollama."""
+def _ollama_installed() -> list[str]:
+    """Вернуть имена моделей, реально установленных в Ollama."""
     try:
         r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=3)
-        installed = [m.get("name", "") for m in r.json().get("models", [])]
+        return [m.get("name", "") for m in r.json().get("models", [])]
     except Exception:  # noqa: BLE001
-        installed = []
-    return {"models": HERMES_MODELS, "installed": installed, "ollama_up": bool(installed) or _ollama_alive()}
+        return []
+
+
+@app.get("/hermes/api/models")
+async def hermes_models() -> dict:
+    """Установленные модели + каталог доступных + статус Ollama."""
+    installed = _ollama_installed()
+    up = bool(installed) or _ollama_alive()
+    return {
+        "installed": installed,
+        "catalog": MODEL_CATALOG,
+        "ollama_up": up,
+    }
 
 
 def _ollama_alive() -> bool:
@@ -98,6 +122,28 @@ def _ollama_alive() -> bool:
         return requests.get(f"{OLLAMA_URL}/api/tags", timeout=3).status_code == 200
     except Exception:  # noqa: BLE001
         return False
+
+
+@app.post("/hermes/api/pull")
+async def hermes_pull(req: dict) -> dict:
+    """Установить модель в Ollama (докачивает веса, если ещё нет).
+
+    Body: {"model": "qwen3:8b"}
+    """
+    model = (req.get("model") or "").strip()
+    if not model:
+        return JSONResponse({"error": "Модель не указана"}, status_code=400)
+    try:
+        r = requests.post(
+            f"{OLLAMA_URL}/api/pull",
+            json={"name": model, "stream": False},
+            timeout=1800,
+        )
+        if r.status_code != 200:
+            return JSONResponse({"error": f"Ollama pull: {r.status_code} {r.text[:300]}"}, status_code=502)
+        return {"ok": True, "model": model}
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({"error": f"Нет связи с Ollama: {exc}"}, status_code=502)
 
 
 @app.post("/hermes/api/chat")
