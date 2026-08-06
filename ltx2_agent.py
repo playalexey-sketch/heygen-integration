@@ -40,6 +40,9 @@ def main() -> None:
     parser.add_argument("--aspect", default="portrait",
                         choices=["portrait", "landscape", "square", "auto"],
                         help="Соотношение сторон")
+    parser.add_argument("--resolution", default="720p",
+                        choices=["720p", "1080p", "4K"],
+                        help="Разрешение (по умолчанию 720p)")
     parser.add_argument("--width", type=int, default=None, help="Явная ширина (делится на 64)")
     parser.add_argument("--height", type=int, default=None, help="Явная высота (делится на 64)")
     parser.add_argument("--prompt", default=None, help="Промпт для LTX-2 (иначе строится автоматически)")
@@ -80,6 +83,7 @@ def main() -> None:
             duration_seconds=args.duration,
             fps=args.fps,
             aspect=args.aspect,
+            resolution=args.resolution,
             width=args.width,
             height=args.height,
             prompt=args.prompt,

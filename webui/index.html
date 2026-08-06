@@ -142,7 +142,15 @@
     <div class="grid">
       <div>
         <label>Длительность (сек)</label>
-        <input type="number" id="duration" value="15" min="5" max="120">
+        <select id="duration">
+          <option value="5">5 сек — короткий ролик</option>
+          <option value="10">10 сек</option>
+          <option value="15" selected>15 сек (рекомендуется)</option>
+          <option value="20">20 сек</option>
+          <option value="30">30 сек</option>
+          <option value="45">45 сек</option>
+          <option value="60">60 сек</option>
+        </select>
       </div>
       <div>
         <label>Соотношение сторон</label>
@@ -153,20 +161,25 @@
         </select>
       </div>
       <div>
-        <label>Разрешение (явное, делится на 64)</label>
-        <div class="row">
-          <div><input type="number" id="width" value="0" placeholder="ширина (0=авто)"></div>
-          <div><input type="number" id="height" value="0" placeholder="высота (0=авто)"></div>
-        </div>
+        <label>Разрешение</label>
+        <select id="resolution">
+          <option value="720p" selected>720p (рекомендуется)</option>
+          <option value="1080p">1080p (Full HD)</option>
+          <option value="4K">4K (требует много VRAM)</option>
+        </select>
       </div>
       <div>
         <label>Кадров в секунду</label>
-        <input type="number" id="fps" value="24" step="1">
+        <select id="fps">
+          <option value="12">12 — плавно, быстро</option>
+          <option value="24" selected>24 (рекомендуется)</option>
+          <option value="30">30 — максимально плавно</option>
+        </select>
       </div>
       <div>
         <label>VRAM / offload (для слабых GPU)</label>
         <select id="offload">
-          <option value="none">none — всё в VRAM</option>
+          <option value="none" selected>Авто (всё в VRAM)</option>
           <option value="cpu">cpu — веса в ОЗУ</option>
           <option value="disk">disk — веса с диска</option>
         </select>
@@ -174,20 +187,26 @@
       <div>
         <label>Квантование (снижает VRAM)</label>
         <select id="quantization">
-          <option value="">— нет —</option>
+          <option value="" selected>— нет —</option>
           <option value="fp8-cast">fp8-cast</option>
           <option value="fp8-scaled-mm">fp8-scaled-mm</option>
         </select>
       </div>
       <div>
-        <label>Сила привязки к фото (0–1)</label>
-        <input type="number" id="image-strength" value="0.8" min="0" max="1" step="0.05">
+        <label>Сила привязки к фото</label>
+        <select id="image-strength">
+          <option value="0.5">0.5 — свободно (больше движения)</option>
+          <option value="0.6">0.6</option>
+          <option value="0.7">0.7</option>
+          <option value="0.8" selected>0.8 (рекомендуется)</option>
+          <option value="0.9">0.9 — строго по фото</option>
+        </select>
       </div>
       <div>
         <label>Silero голос (если используется текст)</label>
         <select id="tts-speaker">
           <option value="aidar">aidar (муж.)</option>
-          <option value="baya">baya (жен.)</option>
+          <option value="baya" selected>baya (жен.)</option>
           <option value="kseniya">kseniya (жен.)</option>
           <option value="xenia">xenia (жен.)</option>
           <option value="eugene">eugene (муж.)</option>
@@ -286,8 +305,9 @@ async function generate() {
   fd.append('duration', document.getElementById('duration').value);
   fd.append('fps', document.getElementById('fps').value);
   fd.append('aspect', document.getElementById('aspect').value);
-  fd.append('width', document.getElementById('width').value || '0');
-  fd.append('height', document.getElementById('height').value || '0');
+  fd.append('resolution', document.getElementById('resolution').value);
+  fd.append('width', '0');
+  fd.append('height', '0');
   fd.append('image_strength', document.getElementById('image-strength').value);
   fd.append('offload', document.getElementById('offload').value);
   fd.append('quantization', document.getElementById('quantization').value);

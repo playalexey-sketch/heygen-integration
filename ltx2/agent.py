@@ -42,13 +42,48 @@ LTX2_DISTILLED_LORA = os.getenv(
 )
 LTX2_GEMMA_ROOT = os.getenv("LTX2_GEMMA_ROOT", DEFAULT_GEMMA_DIR)
 
-# Пресеты разрешений: имя -> (width, height). Оба делятся на 64 (2-stage).
+# Пресеты разрешений: aspect -> (width, height). Оба делятся на 64 (2-stage).
+# Три уровня качества; "720p" — разрешение по умолчанию.
 ASPECT_PRESETS = {
     "portrait": (768, 1280),    # 9:16 — вертикально (Reels/Shorts)
     "landscape": (1280, 768),   # 16:9-ish — горизонтально
     "square": (768, 768),       # 1:1 — квадрат
     "auto": (768, 1280),        # по умолчанию портрет
 }
+
+# Уровни качества (разрешения), валидные для LTX-2 (кратны 64).
+# Ключ -> dict(aspect -> (width, height))
+RESOLUTION_PRESETS = {
+    "720p": {   # по умолчанию
+        "portrait": (576, 1024),     # 9:16  (576/64=9, 1024/64=16)
+        "landscape": (1024, 576),    # 16:9
+        "square": (704, 704),        # 1:1   (704/64=11)
+        "auto": (576, 1024),
+    },
+    "1080p": {
+        "portrait": (768, 1280),
+        "landscape": (1280, 768),
+        "square": (768, 768),
+        "auto": (768, 1280),
+    },
+    "4K": {
+        "portrait": (1152, 2048),    # 9:16
+        "landscape": (2048, 1152),   # 16:9
+        "square": (1280, 1280),
+        "auto": (1152, 2048),
+    },
+}
+
+
+def get_dimensions(aspect: str, resolution: str, width=None, height=None):
+    """
+    Вернуть (width, height) для LTX-2 с учётом выбранных аспекта и разрешения.
+    Явные width/height имеют приоритет, иначе берём из пресета.
+    """
+    if width and height:
+        return int(width), int(height)
+    res = RESOLUTION_PRESETS.get(resolution, RESOLUTION_PRESETS["720p"])
+    return res.get(aspect, res["auto"])
 
 DEFAULT_NEGATIVE_PROMPT = (
     "blurry, out of focus, overexposed, underexposed, low contrast, distorted proportions, "
@@ -103,6 +138,7 @@ def build_ltx2_command(
     duration_seconds: int = 15,
     fps: float = 24,
     aspect: str = "portrait",
+    resolution: str = "720p",
     width: int | None = None,
     height: int | None = None,
     negative_prompt: str = DEFAULT_NEGATIVE_PROMPT,
@@ -118,12 +154,9 @@ def build_ltx2_command(
     Build the exact `python -m ltx_pipelines.a2vid_two_stage ...` command.
 
     duration_seconds/fps -> num_frames snapped to 8*k+1.
-    aspect presets set width/height unless explicit values given.
+    aspect + resolution presets set width/height unless explicit values given.
     """
-    if width is None or height is None:
-        w, h = ASPECT_PRESETS.get(aspect, ASPECT_PRESETS["portrait"])
-        width = width or w
-        height = height or h
+    width, height = get_dimensions(aspect, resolution, width, height)
 
     num_frames = _snap_frames(int(duration_seconds * fps))
 
@@ -168,6 +201,7 @@ def build_talking_video(
     duration_seconds: int = 15,
     fps: float = 24,
     aspect: str = "portrait",
+    resolution: str = "720p",
     width: int | None = None,
     height: int | None = None,
     prompt: str | None = None,
@@ -232,7 +266,8 @@ def build_talking_video(
     cmd = build_ltx2_command(
         photo_path, voice_wav, output_path, prompt,
         duration_seconds=duration_seconds, fps=fps, aspect=aspect,
-        width=width, height=height, negative_prompt=negative_prompt,
+        resolution=resolution, width=width, height=height,
+        negative_prompt=negative_prompt,
         image_strength=image_strength, seed=seed, enhance_prompt=enhance_prompt,
         quantization=quantization, offload=offload,
     )
