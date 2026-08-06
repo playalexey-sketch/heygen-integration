@@ -219,6 +219,11 @@
     </div>
   </div>
 
+  <div class="card" id="env-banner" style="display:none; border-color:var(--danger);">
+    <div class="stage" style="color:var(--danger); font-weight:600;">⚠️ На этом сервере нет возможности собрать видео</div>
+    <div class="hint" id="env-issues" style="margin-top:8px;"></div>
+  </div>
+
   <button class="primary" id="generate" onclick="generate()">🚀 Генерация видео</button>
 
   <div class="status" id="status">
@@ -263,6 +268,22 @@ function bindDrop(dropId, inputId, nameId) {
 bindDrop('drop-photo','photo','photo-name');
 bindDrop('drop-audio','audio','audio-name');
 bindDrop('drop-vref','vref','vref-name');
+
+// Проверка среды при загрузке: предупредить, если видео тут собрать нельзя.
+(async function checkEnv() {
+  try {
+    const r = await fetch('/api/env');
+    const env = await r.json();
+    const banner = document.getElementById('env-banner');
+    const issuesEl = document.getElementById('env-issues');
+    if (!env.ready) {
+      banner.style.display = 'block';
+      issuesEl.innerHTML = (env.issues || []).map(i =>
+        '<div style="padding:2px 0;">• ' + i.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>'
+      ).join('');
+    }
+  } catch (e) { /* сервер недоступен — баннер не показываем */ }
+})();
 
 const statusEl = document.getElementById('status');
 const stageEl = document.getElementById('stage');

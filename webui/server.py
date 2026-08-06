@@ -25,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from ltx2.agent import ASPECT_PRESETS, build_talking_video
+from ltx2.agent import ASPECT_PRESETS, build_talking_video, _prereq_errors
 
 # ── Выходная папка ────────────────────────────────────────────
 DEFAULT_OUTPUT_DIR = os.getenv("LTX2_OUTPUT_DIR", "ltx2_output")
@@ -49,6 +49,16 @@ _HTML = Path(__file__).with_name("index.html")
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
     return _HTML.read_text(encoding="utf-8")
+
+
+@app.get("/api/env")
+async def env_status() -> dict:
+    """Состояние среды: можно ли здесь генерировать видео."""
+    prereq = _prereq_errors()
+    return {
+        "ready": not prereq,
+        "issues": prereq.splitlines() if prereq else [],
+    }
 
 
 @app.get("/output/{job_id}")
