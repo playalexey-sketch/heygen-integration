@@ -306,6 +306,34 @@ python -m hermes.chat_app   # запуск сервера
 Возможности интерфейса: стриминг ответов, выбор модели, сохранение истории
 в рамках сессии, тёмная тема.
 
+### Hermes внутри Docker (LTX-2 webui + Ollama)
+
+Если у вас LTX-2 webui развёрнут в Docker, чат Hermes подключается туда же:
+
+```bash
+cd heygen-integration
+docker compose -f deploy/docker-compose.yml up --build
+```
+
+Compose поднимет два сервиса:
+- **ltx2-webui** (порт 8001) — форма генерации видео **+ чат Hermes по адресу
+  `http://<host>:8001/hermes`** (в шапке появится кнопка «🧠 Чат Hermes»).
+- **ollama** (порт 11434) — запускает модель Hermes.
+
+Скачайте модель в Ollama-контейнер (один раз):
+```bash
+docker exec -it ltx2-ollama ollama pull hermes3:8b
+```
+
+Проверка:
+```bash
+curl http://<host>:8001/hermes/api/models
+# "ollama_up": true
+```
+
+> В webui-контейнере чат проксируется на `http://ollama:11434` (внутренняя
+> docker-сеть). Значение задаётся переменной `OLLAMA_URL` в compose.
+
 ---
 
 ---

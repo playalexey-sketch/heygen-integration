@@ -93,6 +93,10 @@ const statusEl = document.getElementById('status');
 
 let history = [];
 
+// Базовый путь API: standalone (hermes/chat_app.py) → /api/,
+// встроенный в webui → /hermes/api/.
+const API_BASE = location.pathname.startsWith('/hermes') ? '/hermes/api' : '/api';
+
 function addMsg(role, text, streaming=false) {
   const m = document.createElement('div');
   m.className = 'msg ' + role;
@@ -115,7 +119,7 @@ function esc(s) {
 // Загрузка моделей и статус Ollama
 (async function init() {
   try {
-    const r = await fetch('/api/models');
+    const r = await fetch(API_BASE + '/models');
     const d = await r.json();
     d.models.forEach(mm => {
       const o = document.createElement('option');
@@ -149,7 +153,7 @@ formEl.addEventListener('submit', async (e) => {
   let acc = '';
 
   try {
-    const resp = await fetch('/api/chat', {
+    const resp = await fetch(API_BASE + '/chat', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ model: modelEl.value, messages: history })

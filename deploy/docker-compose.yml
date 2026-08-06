@@ -20,6 +20,8 @@ services:
       PORT: "8001"
       LTX2_OUTPUT_DIR: /app/ltx2_output
       LTX2_WORKDIR: /app/ltx2_work
+      # Чат Hermes подключается к сервису ollama внутри docker-сети
+      OLLAMA_URL: "http://ollama:11434"
       # При необходимости переопределите пути к весам:
       # LTX2_CHECKPOINT: /app/models/ltx-2.3/ltx-2.3-22b-dev.safetensors
       # LTX2_SPATIAL_UPSAMPLER: /app/models/ltx-2.3/ltx-2.3-spatial-upscaler-x2-1.1.safetensors
@@ -34,3 +36,27 @@ services:
       - ../ltx2_work:/app/ltx2_work
     restart: unless-stopped
     shm_size: "16g"
+    depends_on:
+      - ollama
+
+  # ── Ollama (запускает модель Hermes) ──────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ltx2-ollama
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    # Для использования GPU: раскомментируйте runtime ниже и добавьте deploy.gpus
+    # runtime: nvidia
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  ollama_models:

@@ -15,14 +15,17 @@ HTML-форма: загрузка фото + голос + текст + наст�
 
 from __future__ import annotations
 
+import json
 import os
 import threading
 import time
 from pathlib import Path
 
+import requests
+
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from ltx2.agent import ASPECT_PRESETS, build_talking_video, _prereq_errors
@@ -59,6 +62,78 @@ async def env_status() -> dict:
         "ready": not prereq,
         "issues": prereq.splitlines() if prereq else [],
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# Hermes Local Chat (через Ollama) — встроен в этот же контейнер
+# ═══════════════════════════════════════════════════════════════
+
+# В Docker: OLLAMA_URL=http://ollama:11434 (сервис из docker-compose).
+# Локально:  OLLAMA_URL=http://127.0.0.1:11434
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
+HERMES_MODELS = ["hermes3:3b", "hermes3:8b", "hermes3:70b", "hermes3:405b"]
+_HERMES_HTML = Path(__file__).with_name("..").joinpath("hermes", "chat.html")
+
+
+@app.get("/hermes", response_class=HTMLResponse)
+async def hermes_chat() -> str:
+    """Веб-интерфейс чата Hermes."""
+    p = _HERMES_HTML.resolve()
+    return p.read_text(encoding="utf-8")
+
+
+@app.get("/hermes/api/models")
+async def hermes_models() -> dict:
+    """Список моделей Hermes + доступность Ollama."""
+    try:
+        r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=3)
+        installed = [m.get("name", "") for m in r.json().get("models", [])]
+    except Exception:  # noqa: BLE001
+        installed = []
+    return {"models": HERMES_MODELS, "installed": installed, "ollama_up": bool(installed) or _ollama_alive()}
+
+
+def _ollama_alive() -> bool:
+    try:
+        return requests.get(f"{OLLAMA_URL}/api/tags", timeout=3).status_code == 200
+    except Exception:  # noqa: BLE001
+        return False
+
+
+@app.post("/hermes/api/chat")
+async def hermes_chat_stream(req: dict) -> StreamingResponse:
+    """Прокси-чат к Ollama со стримингом (SSE)."""
+    model = req.get("model", "hermes3:8b")
+    messages = req.get("messages", [])
+    payload = {"model": model, "messages": messages, "stream": True}
+
+    def gen():
+        try:
+            with requests.post(f"{OLLAMA_URL}/api/chat", json=payload, stream=True, timeout=120) as resp:
+                if resp.status_code != 200:
+                    body = resp.text[:500]
+                    yield f'data: {json.dumps({"error": f"Ollama: {resp.status_code} {body}"})}\n\n'
+                    return
+                for line in resp.iter_lines(decode_unicode=True):
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except Exception:  # noqa: BLE001
+                        continue
+                    content = chunk.get("message", {}).get("content", "")
+                    if content:
+                        yield f'data: {json.dumps({"delta": content})}\n\n'
+                    if chunk.get("done"):
+                        yield f'data: {json.dumps({"done": True})}\n\n'
+        except Exception as exc:  # noqa: BLE001
+            yield f'data: {json.dumps({"error": f"Нет связи с Ollama: {exc}"})}\n\n'
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/output/{job_id}")

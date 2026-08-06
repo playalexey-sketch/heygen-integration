@@ -23,6 +23,11 @@
   }
   header h1 { margin:0; font-size:22px; }
   header p { margin:2px 0 0; color:var(--muted); font-size:13px; }
+  .chatlink {
+    margin-left:auto; background:var(--panel2); border:1px solid var(--line);
+    color:var(--accent2); padding:8px 14px; border-radius:10px; text-decoration:none; font-size:13px; font-weight:600;
+  }
+  .chatlink:hover { border-color:var(--accent2); }
   .card {
     background:var(--panel); border:1px solid var(--line); border-radius:16px;
     padding:20px; margin-top:16px;
@@ -88,6 +93,7 @@
       <h1>LTX-2 — Фото → Видео с цифровым аватаром</h1>
       <p>Загрузите фото человека, голос и текст — получите видео, где он говорит</p>
     </div>
+    <a class="chatlink" href="/hermes">🧠 Чат Hermes</a>
   </header>
 
   <!-- Компоненты -->
