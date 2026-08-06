@@ -228,9 +228,21 @@ python ltx2_agent.py --photo me.jpg --text "..." \
 Интерактивная HTML-форма для генерации без командной строки:
 
 ```bash
+# из папки проекта:
 python -m webui.server
+
+# ИЛИ из ЛЮБОЙ папки (проще на Windows):
+python run_webui.py
 # открыть в браузере: http://localhost:8001
 ```
+
+**Для Windows:** просто дважды кликните по `run_webui.bat` (в нём сервер
+запускается из папки проекта автоматически, независимо от того, откуда вы
+его открыли). Если Python не в PATH — отредактируйте строку `set PY=` в файле.
+
+> Ошибка `ModuleNotFoundError: No module named 'webui'` возникает, когда
+> команду `python -m webui.server` запускают НЕ из папки проекта. Поэтому
+> запускайте через `run_webui.py` / `run_webui.bat` — они работают из любого места.
 
 Форма позволяет:
 * загрузить **фото** (обязательно), **голос** (аудио) и/или **текст**;
@@ -314,6 +326,8 @@ heygen-integration/
 ├── webui/
 │   ├── server.py          # FastAPI: HTML-form + upload + background generation
 │   └── index.html         # Интерактивная HTML-форма генерации видео
+├── run_webui.py           # Универсальный запуск сервера (из любой папки)
+├── run_webui.bat          # Двойной клик для запуска на Windows
 └── utils/
     └── helpers.py         # Utilities
 ```
