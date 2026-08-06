@@ -5,6 +5,9 @@ uvicorn[standard]>=0.29.0
 # HTTP Client
 requests>=2.31.0
 
+# Multipart uploads (FastAPI file uploads)
+python-multipart>=0.0.9
+
 # Data Validation
 pydantic>=2.6.0
 

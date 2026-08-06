@@ -47,6 +47,7 @@ page = st.sidebar.radio(
     "Navigation",
     [
         "🏠 Dashboard",
+        "📸 Photo → Video",
         "🎥 Create Video",
         "🤖 Video Agent",
         "🌐 Translate Video",
@@ -102,6 +103,12 @@ if page == "🏠 Dashboard":
 
     except Exception as e:
         st.error(f"Failed to load videos: {e}")
+
+# ── Photo → Video (digital avatar on photo) ───────────────────
+
+if page == "📸 Photo → Video":
+    from ui.photo_avatar import render as render_photo
+    render_photo(API_BASE)
 
 # ── Create Video ──────────────────────────────────────────────
 

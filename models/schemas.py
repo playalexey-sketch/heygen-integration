@@ -150,6 +150,94 @@ class TTSResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════
+# Assets / Upload
+# ═══════════════════════════════════════════════════════════════
+
+class AssetUploadResponse(BaseModel):
+    """Result of uploading a file via POST /v3/assets."""
+    asset_id: str = Field(default="", description="ID to reference the asset")
+    url: Optional[str] = Field(default=None, description="Public URL of the asset")
+    mime_type: Optional[str] = Field(default=None)
+    size_bytes: Optional[int] = Field(default=None)
+
+
+# ═══════════════════════════════════════════════════════════════
+# Photo Avatar
+# ═══════════════════════════════════════════════════════════════
+
+class PhotoAvatarRequest(BaseModel):
+    """Request to create a Photo Avatar (digital avatar from a photo)."""
+    name: str = Field(..., min_length=1, description="Name for the photo avatar")
+    image_asset_id: Optional[str] = Field(default=None, description="Uploaded asset id of the image")
+    image_url: Optional[str] = Field(default=None, description="Public URL of the image (alternative to image_asset_id)")
+
+
+class PhotoAvatarResponse(BaseModel):
+    """Response after creating a photo avatar."""
+    avatar_id: str = Field(..., description="Photo avatar id, usable as avatar_id for video generation")
+    status: str = Field(default="processing", description="processing / completed / failed")
+    preview_image_url: Optional[str] = Field(default=None)
+    error: Optional[str] = Field(default=None)
+
+
+# ═══════════════════════════════════════════════════════════════
+# Photo → Video (agent)
+# ═══════════════════════════════════════════════════════════════
+
+class PhotoVideoRequest(BaseModel):
+    """Full request for the photo-to-video agent (photo avatar + voice)."""
+    # Avatar source
+    name: str = Field(default="My Photo Avatar", description="Photo avatar name")
+    image_asset_id: Optional[str] = Field(default=None)
+    image_url: Optional[str] = Field(default=None)
+
+    # Voice: pick ONE of (a) uploaded audio, (b) text script + voice_id
+    audio_asset_id: Optional[str] = Field(default=None, description="Uploaded audio asset id (audio-driven lip sync)")
+    audio_url: Optional[str] = Field(default=None)
+    script: Optional[str] = Field(default=None, description="Text the avatar speaks")
+    voice_id: Optional[str] = Field(default=None, description="TTS voice id (required with script)")
+
+    # Output settings
+    title: str = Field(default="", description="Video title")
+    aspect_ratio: str = Field(default="16:9", description="16:9, 9:16, 1:1 or auto")
+    resolution: str = Field(default="1080p", description="720p or 1080p")
+    background: Optional[str] = Field(default=None, description="Background color (hex) or URL")
+    motion_prompt: Optional[str] = Field(default=None, description="Gesture/expression prompt for Avatar IV")
+
+    # Orchestration
+    wait: bool = Field(default=True, description="Block until the video is ready")
+    poll_interval: int = Field(default=10, ge=1, le=120)
+    timeout: int = Field(default=600, ge=10, le=3600)
+
+
+# ═══════════════════════════════════════════════════════════════
+# Voice Cloning
+# ═══════════════════════════════════════════════════════════════
+
+class VoiceCloneRequest(BaseModel):
+    """Request to clone a voice from an audio file."""
+    voice_name: str = Field(..., min_length=1, description="Display name for the cloned voice")
+    audio_url: Optional[str] = Field(default=None)
+    audio_asset_id: Optional[str] = Field(default=None)
+    language: Optional[str] = Field(default=None, description="Language hint, e.g. 'ru' or 'en'")
+    remove_background_noise: bool = Field(default=True)
+
+
+class VoiceCloneResponse(BaseModel):
+    """Response after submitting a voice clone job."""
+    voice_clone_id: str = Field(..., description="Job id to poll status")
+    status: str = Field(default="processing")
+
+
+class VoiceCloneStatus(BaseModel):
+    """Status of a voice clone job."""
+    voice_clone_id: str
+    status: str  # processing / completed / failed
+    voice_id: Optional[str] = Field(default=None, description="Final voice_id once completed")
+    error: Optional[str] = Field(default=None)
+
+
+# ═══════════════════════════════════════════════════════════════
 # Webhook
 # ═══════════════════════════════════════════════════════════════
 

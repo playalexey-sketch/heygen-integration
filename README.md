@@ -12,6 +12,7 @@ Create avatar videos, translate videos, generate speech — all from code or a w
 | Feature | Description |
 |---------|-------------|
 | 🎥 **Avatar Video** | Create videos with specific avatar + voice + script |
+| 📸 **Photo → Video** | Turn a photo + voice/script into a ~15s talking-avatar video |
 | 🤖 **Video Agent** | Prompt-based autonomous video generation |
 | 🌐 **Video Translation** | Translate videos to 40+ languages with lip-sync |
 | 🔊 **Text-to-Speech** | Convert text to natural speech |
@@ -126,6 +127,40 @@ result = heygen_translate_video(
 audio = heygen_text_to_speech("Hello, this is a test.")
 ```
 
+### Photo → Video agent (фото + голос → видео)
+
+Turn a **photo** of a person into a digital avatar and make it speak your
+**voice** in a ~15 second video. Pass a photo and one of: an audio file
+(avatar lip-syncs it), a script + `voice_id`, or `clone_voice_from` (your voice
+is cloned and reads the script).
+
+```python
+from photo_video_agent import build_video_from_photo
+
+result = build_video_from_photo(
+    photo_path="me.jpg",       # portrait photo (PNG/JPG)
+    audio_path="voice.mp3",    # voiceover, ~15s   (OR)
+    # script="Hi! This is me.", voice_id="en-US-JennyNeural",  # text mode
+    # clone_voice_from="voice.mp3", script="Hi! This is me.",   # clone mode
+    duration_seconds=15,
+    resolution="1080p",        # or "720p"
+    aspect_ratio="16:9",       # "16:9" / "9:16" / "1:1" / "auto"
+    wait=True,
+)
+print(result["video_url"])
+```
+
+Or from the command line:
+
+```bash
+python photo_video_agent.py --photo me.jpg --audio voice.mp3 --duration 15 --out video.mp4
+python photo_video_agent.py --photo me.jpg --script "Hi! This is me." --voice-id en-US-JennyNeural
+```
+
+> Note: for audio-driven videos the output length equals the audio length, so
+> trim the audio to ~15s beforehand. For text mode the agent pads the script to
+> roughly match the requested duration.
+
 ---
 
 ## API Endpoints
@@ -145,6 +180,10 @@ audio = heygen_text_to_speech("Hello, this is a test.")
 | GET | `/api/v1/videos/agent/{id}/status` | Agent status |
 | POST | `/api/v1/translate` | Translate video |
 | POST | `/api/v1/tts/create` | Text-to-speech |
+| POST | `/api/v1/photo/video` | Photo + voice → talking avatar video (multipart) |
+| POST | `/api/v1/photo/asset` | Upload an asset (image/audio) → asset_id |
+| POST | `/api/v1/photo/avatar` | Create a photo avatar |
+| POST | `/api/v1/photo/voice/clone` | Clone a voice from audio |
 | POST | `/api/v1/webhooks/heygen` | Webhook receiver |
 | GET | `/api/v1/webhooks/events` | Recent webhook events |
 
@@ -169,11 +208,14 @@ heygen-integration/
 │       ├── voices.py      # Voice endpoints
 │       ├── videos.py      # Video CRUD + Agent
 │       ├── translate.py   # Translation endpoints
-│       └── tts.py         # TTS endpoints
+│       ├── tts.py         # TTS endpoints
+│       └── photo.py       # Photo → Video agent endpoints
 ├── models/
 │   └── schemas.py         # Pydantic data models
 ├── ui/
-│   └── app.py             # Streamlit interface
+│   ├── app.py             # Streamlit interface
+│   └── photo_avatar.py    # Photo → Video agent page
+├── photo_video_agent.py   # Standalone photo→video agent (CLI + function)
 └── utils/
     └── helpers.py         # Utilities
 ```

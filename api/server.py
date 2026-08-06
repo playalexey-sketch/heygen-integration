@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 
 from config import get_settings
 from heygen_client import HeyGenClient, HeyGenError
-from api.routes import avatars, voices, videos, translate, tts
+from api.routes import avatars, voices, videos, translate, tts, photo
 from api import webhooks
 
 settings = get_settings()
@@ -58,6 +58,7 @@ app.include_router(voices.router, prefix="/api/v1/voices", tags=["Voices"])
 app.include_router(videos.router, prefix="/api/v1/videos", tags=["Videos"])
 app.include_router(translate.router, prefix="/api/v1/translate", tags=["Translation"])
 app.include_router(tts.router, prefix="/api/v1/tts", tags=["TTS"])
+app.include_router(photo.router, prefix="/api/v1/photo", tags=["Photo Avatar"])
 app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 
 # ── Health check ──────────────────────────────────────────────
