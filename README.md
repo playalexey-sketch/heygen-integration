@@ -163,6 +163,68 @@ python photo_video_agent.py --photo me.jpg --script "Hi! This is me." --voice-id
 
 ---
 
+## Open-source LTX-2 agent (фото + голос → видео, без HeyGen)
+
+Этот агент собирает видео полностью на **открытых моделях**, без платных API:
+
+* **[Silero TTS](https://github.com/snakers4/silero-models)** — русская озвучка текста (CPU-friendly).
+* **[LTX-2](https://github.com/Lightricks/LTX-2)** (Lightricks) — DiT-модель генерации «аудио+видео».
+  Пайплайн **A2Vid** принимает ваше **фото** как image-conditioning (первый кадр) и
+  **аудиодорожку**, и генерирует видео, где человек на фото говорит с синхронной
+  артикуляцией губ.
+
+> Требуется **GPU** (LTX-2.3 — 22B-модель). В песочнице без GPU агента запустить нельзя,
+> но весь код и скрипт установки готовы к запуску на вашей машине.
+
+### Установка
+
+```bash
+# 1. Клонировать LTX-2 и скачать веса (~десятки ГБ). Нужен hf auth login
+#    и согласие на условия gated-репозитория Lightricks/LTX-2.3.
+./setup_ltx2.sh
+
+# 2. (опционально) предзагрузить модель Silero и указать её локально,
+#    чтобы не зависеть от сети:
+#    export SILERO_MODEL_PATH=/path/to/v4_ru.pt
+```
+
+### Запуск
+
+```bash
+# Текст → озвучка (Silero) → видео (LTX-2 A2Vid)
+python ltx2_agent.py --photo me.jpg \
+  --text "Я родилась 05 февраля 1987 года и я красотка" \
+  --duration 15 --aspect portrait
+
+# Ваша готовая аудиодорожка → видео (без TTS)
+python ltx2_agent.py --photo me.jpg --audio voice.wav --out talking.mp4
+
+# Клонировать ваш голос (Coqui XTTS) и озвучить им текст
+python ltx2_agent.py --photo me.jpg --text "Привет!" \
+  --voice-reference my_voice.wav --clone-voice
+
+# Не запускать, а только показать собираемую команду LTX-2
+python ltx2_agent.py --photo me.jpg --audio voice.wav --dry-run
+
+# Диагностика окружения
+python ltx2_agent.py --check-env
+```
+
+### Настройки (для слабых GPU)
+
+```bash
+python ltx2_agent.py --photo me.jpg --text "..." \
+  --offload cpu          # выгружать веса в ОЗУ (меньше VRAM)
+  --quantization fp8-cast   # FP8-квантование (снижает VRAM)
+  --aspect landscape     # 16:9 горизонтально (по умолчанию portrait 9:16)
+  --duration 10          # длительность, сек (по умолчанию 15)
+```
+
+Пути к весам задаются через переменные окружения:
+`LTX2_CHECKPOINT`, `LTX2_SPATIAL_UPSAMPLER`, `LTX2_DISTILLED_LORA`, `LTX2_GEMMA_ROOT`.
+
+---
+
 ## API Endpoints
 
 | Method | Endpoint | Description |
@@ -216,6 +278,11 @@ heygen-integration/
 │   ├── app.py             # Streamlit interface
 │   └── photo_avatar.py    # Photo → Video agent page
 ├── photo_video_agent.py   # Standalone photo→video agent (CLI + function)
+├── ltx2_agent.py          # Open-source LTX-2 photo→video agent (CLI)
+├── setup_ltx2.sh          # Installer for the LTX-2 open-source agent
+├── ltx2/
+│   ├── agent.py           # LTX-2 A2Vid orchestration
+│   └── tts.py             # Silero TTS + optional Coqui XTTS voice cloning
 └── utils/
     └── helpers.py         # Utilities
 ```

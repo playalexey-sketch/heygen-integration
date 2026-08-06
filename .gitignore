@@ -46,3 +46,8 @@ logs/
 *.mp3
 *.wav
 downloads/
+
+# LTX-2 open-source agent
+models/
+LTX-2/
+*.safetensors
