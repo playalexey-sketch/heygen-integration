@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3d2e22"/>
+      <stop offset="40%" stop-color="#c9a86c" stop-opacity="0.55"/>
+      <stop offset="70%" stop-color="#8b6b45"/>
+      <stop offset="100%" stop-color="#1a1410"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="700" x2="0" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2a2118"/>
+      <stop offset="100%" stop-color="#120e0b"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6b4e32"/>
+      <stop offset="100%" stop-color="#3d2a18"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8dcc8" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#c9a86c" stop-opacity="0.05"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="8"/></filter>
+  </defs>
+
+  <!-- Sky / city glow -->
+  <rect width="800" height="1000" fill="url(#sky)"/>
+
+  <!-- Window frame area -->
+  <rect x="80" y="80" width="640" height="520" rx="4" fill="#0d0a08" stroke="#c9a86c" stroke-opacity="0.25" stroke-width="2"/>
+
+  <!-- City silhouette -->
+  <g opacity="0.7">
+    <rect x="120" y="280" width="40" height="280" fill="#1a1410"/>
+    <rect x="170" y="220" width="55" height="340" fill="#120e0b"/>
+    <rect x="235" y="300" width="35" height="260" fill="#1a1410"/>
+    <rect x="280" y="180" width="70" height="380" fill="#0f0c0a"/>
+    <!-- Empire-like -->
+    <rect x="360" y="140" width="50" height="420" fill="#120e0b"/>
+    <polygon points="385,80 370,140 400,140" fill="#1a1410"/>
+    <rect x="382" y="60" width="6" height="30" fill="#2a2118"/>
+    <rect x="420" y="250" width="45" height="310" fill="#1a1410"/>
+    <rect x="475" y="200" width="60" height="360" fill="#0f0c0a"/>
+    <rect x="545" y="270" width="40" height="290" fill="#1a1410"/>
+    <rect x="595" y="230" width="70" height="330" fill="#120e0b"/>
+    <!-- Windows lights -->
+    <g fill="#c9a86c" opacity="0.35">
+      <rect x="180" y="250" width="6" height="8" rx="1"/>
+      <rect x="195" y="250" width="6" height="8" rx="1"/>
+      <rect x="180" y="280" width="6" height="8" rx="1"/>
+      <rect x="195" y="310" width="6" height="8" rx="1"/>
+      <rect x="300" y="220" width="6" height="8" rx="1"/>
+      <rect x="320" y="220" width="6" height="8" rx="1"/>
+      <rect x="300" y="260" width="6" height="8" rx="1"/>
+      <rect x="320" y="300" width="6" height="8" rx="1"/>
+      <rect x="375" y="200" width="6" height="8" rx="1"/>
+      <rect x="390" y="200" width="6" height="8" rx="1"/>
+      <rect x="375" y="240" width="6" height="8" rx="1"/>
+      <rect x="390" y="280" width="6" height="8" rx="1"/>
+      <rect x="490" y="240" width="6" height="8" rx="1"/>
+      <rect x="510" y="240" width="6" height="8" rx="1"/>
+      <rect x="490" y="280" width="6" height="8" rx="1"/>
+      <rect x="610" y="270" width="6" height="8" rx="1"/>
+      <rect x="630" y="270" width="6" height="8" rx="1"/>
+      <rect x="610" y="310" width="6" height="8" rx="1"/>
+    </g>
+  </g>
+
+  <!-- Horizon glow -->
+  <ellipse cx="400" cy="560" rx="300" ry="40" fill="#e0c992" opacity="0.2" filter="url(#blur)"/>
+
+  <!-- Interior floor -->
+  <path d="M0 600 L800 600 L800 1000 L0 1000 Z" fill="url(#floor)"/>
+  <path d="M0 600 L800 600 L800 620 L0 640 Z" fill="#1a1410" opacity="0.5"/>
+
+  <!-- Desk -->
+  <rect x="140" y="720" width="420" height="18" rx="2" fill="url(#wood)"/>
+  <rect x="160" y="738" width="16" height="120" fill="#3d2a18"/>
+  <rect x="520" y="738" width="16" height="120" fill="#3d2a18"/>
+  <rect x="160" y="850" width="380" height="10" fill="#2a1a10" opacity="0.5"/>
+
+  <!-- Laptop on desk -->
+  <rect x="280" y="640" width="160" height="100" rx="4" fill="#1a1410" stroke="#c9a86c" stroke-opacity="0.3"/>
+  <rect x="290" y="650" width="140" height="80" rx="2" fill="#0a0806"/>
+  <!-- Chart on screen -->
+  <polyline points="300,710 320,690 340,700 360,680 380,685 400,660 420,655"
+            stroke="#c9a86c" stroke-width="2" fill="none" opacity="0.8"/>
+  <rect x="260" y="738" width="200" height="8" rx="2" fill="#2a2118"/>
+
+  <!-- Lamp -->
+  <rect x="600" y="700" width="10" height="80" fill="#6b4e32"/>
+  <path d="M580 700 L630 700 L640 660 L570 660 Z" fill="#c9a86c" opacity="0.7"/>
+  <ellipse cx="605" cy="780" rx="24" ry="8" fill="#3d2a18"/>
+  <ellipse cx="605" cy="670" rx="40" ry="30" fill="#e0c992" opacity="0.12" filter="url(#blur)"/>
+
+  <!-- Chair suggestion -->
+  <path d="M80 780 Q100 740 140 750 L150 900 L70 900 Q60 840 80 780Z" fill="#1a1410" stroke="#c9a86c" stroke-opacity="0.15"/>
+  <rect x="90" y="900" width="50" height="12" rx="2" fill="#2a1a10"/>
+
+  <!-- Plant -->
+  <rect x="680" y="780" width="30" height="40" rx="2" fill="#3d2a18"/>
+  <ellipse cx="695" cy="760" rx="28" ry="40" fill="#4a5c3a" opacity="0.7"/>
+  <ellipse cx="675" cy="770" rx="18" ry="30" fill="#3a4a2e" opacity="0.7"/>
+  <ellipse cx="715" cy="775" rx="16" ry="28" fill="#3a4a2e" opacity="0.6"/>
+
+  <!-- Soft vignette -->
+  <rect width="800" height="1000" fill="url(#floor)" opacity="0"/>
+  <path d="M0 0 H800 V200 H0 Z" fill="#0a0806" opacity="0.25"/>
+  <path d="M0 850 H800 V1000 H0 Z" fill="#0a0806" opacity="0.4"/>
+</svg>

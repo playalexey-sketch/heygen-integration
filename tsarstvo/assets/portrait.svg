@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="800" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2a2118"/>
+      <stop offset="45%" stop-color="#1a1410"/>
+      <stop offset="100%" stop-color="#0a0806"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="35%" r="50%">
+      <stop offset="0%" stop-color="#c9a86c" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#c9a86c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="skin" x1="300" y1="200" x2="520" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e8c4a8"/>
+      <stop offset="100%" stop-color="#c49a78"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="200" y1="120" x2="600" y2="700" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2a1a12"/>
+      <stop offset="50%" stop-color="#1a100c"/>
+      <stop offset="100%" stop-color="#0d0806"/>
+    </linearGradient>
+    <linearGradient id="dress" x1="250" y1="560" x2="550" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1a1210"/>
+      <stop offset="100%" stop-color="#0a0806"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+  </defs>
+
+  <rect width="800" height="1000" fill="url(#bg)"/>
+  <ellipse cx="400" cy="320" rx="320" ry="360" fill="url(#glow)"/>
+
+  <!-- Ambient light orbs -->
+  <circle cx="120" cy="180" r="80" fill="#c9a86c" opacity="0.06"/>
+  <circle cx="680" cy="700" r="120" fill="#a67c52" opacity="0.08"/>
+
+  <!-- Hair back -->
+  <path d="M220 280 C200 180 280 100 400 95 C520 100 600 180 580 280
+           C590 360 600 480 620 620 C640 760 630 900 600 980
+           L200 980 C170 900 160 760 180 620 C200 480 210 360 220 280Z"
+        fill="url(#hair)"/>
+
+  <!-- Neck -->
+  <path d="M355 480 L355 560 C355 590 370 610 400 610 C430 610 445 590 445 560 L445 480Z"
+        fill="url(#skin)"/>
+
+  <!-- Shoulders / dress -->
+  <path d="M160 620 C220 560 300 540 400 540 C500 540 580 560 640 620
+           L680 1000 L120 1000 Z" fill="url(#dress)"/>
+  <path d="M250 580 C300 555 350 545 400 545 C450 545 500 555 550 580
+           L530 620 C480 590 420 580 400 580 C380 580 320 590 270 620 Z"
+        fill="#0f0b09" opacity="0.9"/>
+
+  <!-- Face -->
+  <ellipse cx="400" cy="340" rx="118" ry="145" fill="url(#skin)"/>
+
+  <!-- Hair front waves -->
+  <path d="M280 220 C260 280 255 360 270 450 C250 380 250 280 280 220Z" fill="#120c0a"/>
+  <path d="M520 220 C540 280 545 360 530 450 C550 380 550 280 520 220Z" fill="#120c0a"/>
+  <path d="M300 140 C340 100 380 90 400 90 C420 90 460 100 500 140
+           C510 180 505 230 490 270 C470 200 430 160 400 155
+           C370 160 330 200 310 270 C295 230 290 180 300 140Z" fill="url(#hair)"/>
+  <path d="M250 300 C240 400 255 520 280 640 C260 540 245 400 250 300Z" fill="#0d0806" opacity="0.85"/>
+  <path d="M550 300 C560 400 545 520 520 640 C540 540 555 400 550 300Z" fill="#0d0806" opacity="0.85"/>
+
+  <!-- Brows -->
+  <path d="M330 300 C350 288 375 288 390 298" stroke="#3a2418" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M410 298 C425 288 450 288 470 300" stroke="#3a2418" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+
+  <!-- Eyes -->
+  <ellipse cx="360" cy="330" rx="18" ry="11" fill="#2a1810"/>
+  <ellipse cx="440" cy="330" rx="18" ry="11" fill="#2a1810"/>
+  <circle cx="362" cy="330" r="5" fill="#e8dcc8" opacity="0.35"/>
+  <circle cx="442" cy="330" r="5" fill="#e8dcc8" opacity="0.35"/>
+
+  <!-- Nose -->
+  <path d="M400 340 L395 380 C393 388 396 392 400 392 C404 392 407 388 405 380 L400 340"
+        fill="#b88868" opacity="0.45"/>
+
+  <!-- Lips -->
+  <path d="M375 420 C390 412 410 412 425 420 C415 435 385 435 375 420Z" fill="#a06058"/>
+  <path d="M380 422 C395 418 405 418 420 422" stroke="#c08078" stroke-width="1.5" fill="none" opacity="0.6"/>
+
+  <!-- Cheek soft -->
+  <ellipse cx="330" cy="370" rx="28" ry="16" fill="#d4a090" opacity="0.25" filter="url(#soft)"/>
+  <ellipse cx="470" cy="370" rx="28" ry="16" fill="#d4a090" opacity="0.25" filter="url(#soft)"/>
+
+  <!-- Necklace -->
+  <path d="M355 580 C370 620 430 620 445 580" stroke="#c9a86c" stroke-width="1.5" fill="none" opacity="0.85"/>
+  <path d="M400 615 L400 655" stroke="#c9a86c" stroke-width="1.5" opacity="0.85"/>
+  <ellipse cx="400" cy="670" rx="10" ry="14" fill="#1a1008" stroke="#c9a86c" stroke-width="1.5"/>
+  <ellipse cx="400" cy="670" rx="5" ry="7" fill="#c9a86c" opacity="0.35"/>
+
+  <!-- Soft vignette -->
+  <rect width="800" height="1000" fill="url(#bg)" opacity="0"/>
+  <path d="M0 0 H800 V1000 H0 Z" fill="url(#glow)" opacity="0.3"/>
+</svg>
