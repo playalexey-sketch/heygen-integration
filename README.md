@@ -379,6 +379,19 @@ docker run --gpus all -p 8001:8001 -v $PWD/models:/app/models ltx2-webui
 
 ---
 
+## 🧩 AI-конвейер «Личный бренд под ключ» — 10 спринтов, 10 продуктов
+
+В папке **[`sprints/`](sprints/README.md)** — готовый производственный план на основе
+10 продуктовых лендингов (Досье эксперта → Карта рынка → Позиционирование → Скриптбук
+бота → Тест диалогов → Контент-план → Сценарии Reels → Визуальный пакет →
+Production Pack → Publishing Pack). Каждый спринт даёт самостоятельный законченный
+продукт и использует AI-инструменты этого репозитория (Hermes-чат, HeyGen, LTX-2).
+
+* [`sprints/SPRINTS.md`](sprints/SPRINTS.md) — мастер-бэклог: цель/вход/задачи/DoD/цена по каждому спринту
+* [`sprints/templates/`](sprints/templates) — 10 шаблонов готового продукта + промпты для Hermes
+* [`sprints/scripts/new_client.py`](sprints/scripts/new_client.py) — скаффолдер рабочей папки клиента
+* [`sprints/site/`](sprints/site) — 10 статических лендингов + витрина (`generate_site.py` их собирает из `data.py`)
+
 Полная структура — см. ниже. Для работы агента (как я разбираю ошибки и выбираю
 параметры) см. **[`OPERATIONS_LOG.md`](OPERATIONS_LOG.md)** — рабочий журнал/SOP.
 
