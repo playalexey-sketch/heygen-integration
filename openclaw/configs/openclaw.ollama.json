@@ -1,0 +1,77 @@
+{
+  "$schema": "https://docs.openclaw.ai/schemas/openclaw.json",
+
+  "//": "Исправленный конфиг для Ollama. Ключевое отличие от старых гайдов:",
+  "//1": "baseUrl БЕЗ /v1 и api: \"ollama\" — OpenClaw ходит в нативный /api/chat,",
+  "//2": "а не в OpenAI-совместимый /v1. Legacy-режим (/v1 + openai-completions)",
+  "//3": "чаще всего и ломается после обновлений.",
+
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "ollama": {
+        "baseUrl": "http://127.0.0.1:11434",
+        "apiKey": "ollama-local",
+        "api": "ollama",
+        "timeoutSeconds": 300,
+        "models": [
+          {
+            "id": "qwen3:8b",
+            "name": "qwen3:8b",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 32768,
+            "maxTokens": 8192,
+            "params": {
+              "num_ctx": 32768,
+              "keep_alive": "15m",
+              "thinking": false
+            }
+          }
+        ]
+      }
+    }
+  },
+
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "ollama/qwen3:8b"
+      },
+      "maxConcurrent": 2,
+      "subagents": { "maxConcurrent": 2 }
+    }
+  },
+
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "ВСТАВЬТЕ_ТОКЕН_ОТ_BOTFATHER",
+      "dmPolicy": "allowlist",
+      "allowFrom": ["ВАШ_ЧИСЛОВОЙ_TELEGRAM_ID"],
+      "groupPolicy": "allowlist",
+      "groups": { "*": { "requireMention": true } },
+      "errorPolicy": "always"
+    }
+  },
+
+  "plugins": {
+    "entries": {
+      "telegram": { "enabled": true }
+    }
+  },
+
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback"
+  },
+
+  "tools": {
+    "web": {
+      "search": { "enabled": false },
+      "fetch": { "enabled": true }
+    }
+  }
+}

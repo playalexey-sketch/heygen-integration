@@ -1,0 +1,59 @@
+{
+  "$schema": "https://docs.openclaw.ai/schemas/openclaw.json",
+
+  "//": "Open WebUI как OpenAI-совместимый прокси. ВАЖНО: это НЕ замена движка —",
+  "//1": "за Open WebUI всё равно стоит Ollama или llama.cpp. Используйте этот вариант,",
+  "//2": "только если Open WebUI уже развёрнут и нужен единый вход для всех клиентов.",
+  "//3": "Ключ: Open WebUI → Settings → Account → API keys (sk-...).",
+  "//4": "Список моделей и их точные id: GET http://127.0.0.1:3000/api/models",
+  "//5": "Обратите внимание: базовый путь /api, а не /v1 — эндпоинт /api/chat/completions.",
+
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "openwebui": {
+        "baseUrl": "http://127.0.0.1:3000/api",
+        "apiKey": "sk-ВСТАВЬТЕ_КЛЮЧ_OPEN_WEBUI",
+        "api": "openai-completions",
+        "timeoutSeconds": 300,
+        "models": [
+          {
+            "id": "qwen3:8b",
+            "name": "Qwen3 8B (via Open WebUI)",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 32768,
+            "maxTokens": 4096,
+            "compat": {
+              "//": "Раскомментируйте при ошибках вида 'content: expected a string'",
+              "requiresStringContent": false,
+              "strictMessageKeys": false,
+              "supportsTools": true
+            }
+          }
+        ]
+      }
+    }
+  },
+
+  "agents": {
+    "defaults": {
+      "model": { "primary": "openwebui/qwen3:8b" }
+    }
+  },
+
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "ВСТАВЬТЕ_ТОКЕН_ОТ_BOTFATHER",
+      "dmPolicy": "allowlist",
+      "allowFrom": ["ВАШ_ЧИСЛОВОЙ_TELEGRAM_ID"],
+      "groups": { "*": { "requireMention": true } }
+    }
+  },
+
+  "plugins": { "entries": { "telegram": { "enabled": true } } },
+
+  "gateway": { "port": 18789, "mode": "local", "bind": "loopback" }
+}
