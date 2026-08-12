@@ -5,7 +5,88 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Скриптбук Telegram-бота — Спринт 4 · botscripts.ru</title>
 <meta name="description" content="Продающий бот, который закрывает сделки, пока вы спите">
-<link rel="stylesheet" href="css/style.css">
+<style>
+:root{
+  --bg:#0b0d12;
+  --bg-soft:#12151c;
+  --card:#171a22;
+  --border:#252a35;
+  --text:#eef1f6;
+  --muted:#9aa3b2;
+  --accent:#7c5cff;
+  --accent-2:#22d3aa;
+  --danger:#ff6b6b;
+  --radius:16px;
+  font-size:16px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:radial-gradient(1200px 600px at 80% -10%, #1c1440 0, transparent 60%),
+             radial-gradient(900px 500px at -10% 10%, #0d2a26 0, transparent 55%),
+             var(--bg);
+  color:var(--text);
+  font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  line-height:1.55;
+}
+a{color:inherit;}
+.container{max-width:1040px;margin:0 auto;padding:0 24px;}
+
+/* NAV */
+.nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;}
+.nav .logo{font-weight:800;letter-spacing:.02em;font-size:1.05rem;}
+.nav .logo span{color:var(--accent);}
+.nav .back{font-size:.85rem;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:8px 14px;border-radius:999px;}
+.nav .back:hover{border-color:var(--accent);color:var(--text);}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;gap:8px;background:var(--bg-soft);border:1px solid var(--border);color:var(--muted);
+  padding:6px 14px;border-radius:999px;font-size:.8rem;margin-bottom:20px;}
+.badge b{color:var(--accent-2);}
+
+/* HERO */
+.hero{padding:36px 0 20px;}
+.hero h1{font-size:clamp(1.9rem,4vw,3rem);line-height:1.15;margin:0 0 18px;font-weight:800;}
+.hero h1 em{font-style:normal;color:var(--accent-2);}
+.hero p.lead{font-size:1.15rem;color:var(--muted);max-width:640px;margin:0 0 28px;}
+
+.cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
+.btn{display:inline-block;background:linear-gradient(135deg,var(--accent),#5b3df0);color:#fff;text-decoration:none;
+  padding:14px 26px;border-radius:12px;font-weight:700;font-size:1rem;box-shadow:0 8px 24px rgba(124,92,255,.35);border:none;cursor:pointer;}
+.btn:hover{filter:brightness(1.08);}
+.btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text);box-shadow:none;}
+.price-note{color:var(--muted);font-size:.85rem;}
+
+/* SECTION */
+section{padding:34px 0;border-top:1px solid var(--border);}
+section h2{font-size:1.3rem;margin:0 0 16px;font-weight:800;}
+section h2 .num{color:var(--accent);margin-right:8px;}
+
+.pain{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--danger);
+  border-radius:12px;padding:20px 22px;font-size:1.05rem;color:#f3d9d9;}
+
+.product-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+.product-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.product-card .k{color:var(--accent-2);font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+
+.proof{background:var(--bg-soft);border:1px dashed var(--border);border-radius:var(--radius);padding:22px;color:var(--muted);font-style:italic;}
+
+.needs ul{margin:0;padding-left:20px;color:var(--muted);}
+.needs li{margin-bottom:6px;}
+
+.dep{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
+.dep a{background:var(--bg-soft);border:1px solid var(--border);border-radius:999px;padding:8px 14px;font-size:.85rem;text-decoration:none;color:var(--text);}
+.dep a:hover{border-color:var(--accent-2);color:var(--accent-2);}
+
+.ai-box{background:linear-gradient(135deg,rgba(124,92,255,.12),rgba(34,211,170,.08));border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px 22px;}
+.ai-box .k{color:var(--accent);font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
+.ai-box code{background:#0d0f15;padding:2px 6px;border-radius:6px;font-size:.85rem;}
+
+footer{padding:36px 0 60px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);}
+footer a{color:var(--accent-2);text-decoration:none;}
+
+</style>
 </head>
 <body>
 <div class="container">

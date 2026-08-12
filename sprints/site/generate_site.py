@@ -11,6 +11,7 @@ from pathlib import Path
 from data import BY_NUM, PRODUCTS
 
 SITE_DIR = Path(__file__).resolve().parent
+CSS = (SITE_DIR / "css" / "style.css").read_text(encoding="utf-8")
 
 PAGE_TMPL = """<!DOCTYPE html>
 <html lang="ru">
@@ -19,7 +20,9 @@ PAGE_TMPL = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{name} — Спринт {num} · {domain}</title>
 <meta name="description" content="{hero}">
-<link rel="stylesheet" href="css/style.css">
+<style>
+__CSS__
+</style>
 </head>
 <body>
 <div class="container">
@@ -98,7 +101,9 @@ INDEX_TMPL = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI-конвейер «Личный бренд под ключ» — 10 продуктов, 10 спринтов</title>
-<link rel="stylesheet" href="css/style.css">
+<style>
+__CSS__
+</style>
 </head>
 <body>
 <div class="container">
@@ -154,7 +159,7 @@ def render_product_page(p: dict) -> str:
         )
         deps_out_html = f'<p class="lead" style="font-size:.95rem;margin-top:14px;">Открывает дорогу к:</p><div class="dep">{links}</div>'
 
-    return PAGE_TMPL.format(
+    html = PAGE_TMPL.format(
         name=p["name"],
         num=p["num"],
         domain=p["domain"],
@@ -170,6 +175,7 @@ def render_product_page(p: dict) -> str:
         cta=p["cta"],
         price=p["price"],
     )
+    return html.replace("__CSS__", CSS)
 
 
 def render_index() -> str:
@@ -184,7 +190,7 @@ def render_index() -> str:
         </a>'''
         for p in PRODUCTS
     )
-    return INDEX_TMPL.format(cards=cards)
+    return INDEX_TMPL.format(cards=cards).replace("__CSS__", CSS)
 
 
 def main() -> None:
