@@ -1,0 +1,198 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1360" viewBox="0 0 1700 1360" font-family="DejaVu Sans, Verdana, sans-serif">
+
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.13"/>
+    </filter>
+    <marker id="arr" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 1 L 11 6 L 0 11 z" fill="#334155"/>
+    </marker>
+    <marker id="arrBack" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 11 6 L 0 11 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrMap" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 11 6 L 0 11 z" fill="#ea580c"/>
+    </marker>
+    <marker id="arrPurple" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 1 L 11 6 L 0 11 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <rect width="1700" height="1360" fill="#f1f5f9"/>
+
+  <!-- ══════════════ ЗАГОЛОВОК ══════════════ -->
+  <text x="80" y="66" font-size="35" font-weight="bold" fill="#0f172a">OpenClaw + Telegram + локальная модель</text>
+  <text x="80" y="102" font-size="18" fill="#475569">Без Ollama. Всё бесплатно, движок с открытым кодом, модель считает ваш компьютер.</text>
+  <text x="80" y="132" font-size="15" fill="#64748b">Ollama была лишь обёрткой — мы убираем её и подключаем тот же движок напрямую.</text>
+
+  <rect x="1428" y="38" width="192" height="76" rx="14" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="1524" y="76" font-size="30" font-weight="bold" fill="#15803d" text-anchor="middle">0 ₽ / мес</text>
+  <text x="1524" y="99" font-size="13" fill="#166534" text-anchor="middle">без API-ключей и подписок</text>
+
+  <!-- ══════════════ КОНТЕЙНЕРЫ ══════════════ -->
+  <rect x="463" y="180" width="360" height="260" rx="18" fill="#e0f2fe" stroke="#7dd3fc" stroke-width="2" stroke-dasharray="9 7"/>
+  <text x="643" y="207" font-size="14" font-weight="bold" fill="#0369a1" text-anchor="middle" letter-spacing="1.5">ИНТЕРНЕТ</text>
+
+  <rect x="876" y="180" width="773" height="410" rx="18" fill="#fff7ed" stroke="#fdba74" stroke-width="2" stroke-dasharray="9 7"/>
+  <text x="900" y="207" font-size="14" font-weight="bold" fill="#c2410c" letter-spacing="1.5">ВАШ КОМПЬЮТЕР — здесь всё локально, данные никуда не уходят</text>
+
+  <!-- ══════════════ УЗЕЛ 1: TELEGRAM ══════════════ -->
+  <rect x="80" y="240" width="300" height="170" rx="14" fill="#ffffff" stroke="#229ED9" stroke-width="2.5" filter="url(#sh)"/>
+  <circle cx="112" cy="272" r="17" fill="#229ED9"/>
+  <text x="112" y="279" font-size="17" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+  <text x="140" y="279" font-size="19" font-weight="bold" fill="#0f172a">TELEGRAM</text>
+  <line x1="102" y1="299" x2="358" y2="299" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="102" y="326" font-size="15" fill="#334155">Ваш телефон или ПК</text>
+  <text x="102" y="352" font-size="15" fill="#334155">Вы пишете боту</text>
+  <text x="102" y="386" font-size="13" fill="#64748b">Ничего ставить не нужно</text>
+
+  <!-- ══════════════ УЗЕЛ 2: BOT API ══════════════ -->
+  <rect x="493" y="240" width="300" height="170" rx="14" fill="#ffffff" stroke="#229ED9" stroke-width="2.5" filter="url(#sh)"/>
+  <circle cx="525" cy="272" r="17" fill="#229ED9"/>
+  <text x="525" y="279" font-size="17" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+  <text x="553" y="279" font-size="19" font-weight="bold" fill="#0f172a">BOT API</text>
+  <line x1="515" y1="299" x2="771" y2="299" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="515" y="326" font-size="15" font-family="DejaVu Sans Mono, monospace" fill="#0369a1">api.telegram.org</text>
+  <text x="515" y="352" font-size="15" fill="#334155">Облако Telegram</text>
+  <text x="515" y="386" font-size="13" fill="#64748b">Токен от @BotFather</text>
+
+  <!-- ══════════════ УЗЕЛ 3: OPENCLAW ══════════════ -->
+  <rect x="906" y="240" width="300" height="170" rx="14" fill="#ffffff" stroke="#ea580c" stroke-width="3" filter="url(#sh)"/>
+  <circle cx="938" cy="272" r="17" fill="#ea580c"/>
+  <text x="938" y="279" font-size="17" font-weight="bold" fill="#ffffff" text-anchor="middle">3</text>
+  <text x="966" y="279" font-size="19" font-weight="bold" fill="#0f172a">OPENCLAW</text>
+  <line x1="928" y1="299" x2="1184" y2="299" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="928" y="326" font-size="15" fill="#334155">Шлюз · порт 18789</text>
+  <text x="928" y="352" font-size="15" fill="#334155">Сессии, права, скиллы</text>
+  <text x="928" y="386" font-size="13" font-family="DejaVu Sans Mono, monospace" fill="#c2410c">npm i -g openclaw</text>
+
+  <!-- ══════════════ УЗЕЛ 4: LLAMA-SERVER ══════════════ -->
+  <rect x="1319" y="240" width="300" height="170" rx="14" fill="#ffffff" stroke="#16a34a" stroke-width="3" filter="url(#sh)"/>
+  <circle cx="1351" cy="272" r="17" fill="#16a34a"/>
+  <text x="1351" y="279" font-size="17" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
+  <text x="1379" y="279" font-size="19" font-weight="bold" fill="#0f172a">LLAMA-SERVER</text>
+  <line x1="1341" y1="299" x2="1597" y2="299" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="1341" y="326" font-size="15" fill="#334155">Движок llama.cpp · MIT</text>
+  <text x="1341" y="352" font-size="15" fill="#334155">Порт 8080 · путь /v1</text>
+  <text x="1341" y="386" font-size="13" fill="#15803d">Здесь раньше была Ollama</text>
+
+  <!-- ══════════════ МОДЕЛЬ ══════════════ -->
+  <line x1="1469" y1="410" x2="1469" y2="444" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrPurple)"/>
+  <text x="1484" y="434" font-size="12" fill="#7c3aed">грузит в память</text>
+
+  <rect x="1319" y="450" width="300" height="112" rx="14" fill="#faf5ff" stroke="#7c3aed" stroke-width="2.5" filter="url(#sh)"/>
+  <text x="1341" y="481" font-size="16" font-weight="bold" fill="#5b21b6">МОДЕЛЬ — файл .gguf</text>
+  <text x="1341" y="509" font-size="15" font-family="DejaVu Sans Mono, monospace" fill="#334155">Qwen3-8B  ~5 ГБ</text>
+  <text x="1341" y="536" font-size="13" fill="#64748b">Скачается сама, лежит на диске</text>
+
+  <!-- ══════════════ СТРЕЛКИ ЦЕПОЧКИ ══════════════ -->
+  <line x1="390" y1="316" x2="483" y2="316" stroke="#334155" stroke-width="3" marker-end="url(#arr)"/>
+  <line x1="483" y1="344" x2="390" y2="344" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrBack)"/>
+  <text x="436" y="303" font-size="13" fill="#475569" text-anchor="middle">интернет</text>
+
+  <line x1="803" y1="316" x2="896" y2="316" stroke="#334155" stroke-width="3" marker-end="url(#arr)"/>
+  <line x1="896" y1="344" x2="803" y2="344" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrBack)"/>
+  <text x="849" y="303" font-size="13" fill="#475569" text-anchor="middle">long polling</text>
+
+  <line x1="1216" y1="316" x2="1309" y2="316" stroke="#334155" stroke-width="3" marker-end="url(#arr)"/>
+  <line x1="1309" y1="344" x2="1216" y2="344" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrBack)"/>
+  <text x="1262" y="303" font-size="13" fill="#475569" text-anchor="middle">HTTP /v1</text>
+
+  <text x="436" y="371" font-size="12" fill="#94a3b8" text-anchor="middle">ответ</text>
+  <text x="849" y="371" font-size="12" fill="#94a3b8" text-anchor="middle">ответ</text>
+  <text x="1262" y="371" font-size="12" fill="#94a3b8" text-anchor="middle">ответ</text>
+
+  <!-- ══════════════ ПУТЬ СООБЩЕНИЯ ══════════════ -->
+  <rect x="80" y="615" width="1540" height="92" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="106" y="649" font-size="16" font-weight="bold" fill="#0f172a">Путь одного сообщения</text>
+  <text x="106" y="681" font-size="15" fill="#334155">Вы пишете в Telegram <tspan fill="#94a3b8">→</tspan> OpenClaw забирает сообщение <tspan fill="#94a3b8">→</tspan> шлёт его в llama-server <tspan fill="#94a3b8">→</tspan> модель генерирует текст <tspan fill="#94a3b8">→</tspan> OpenClaw отправляет ответ обратно в чат.</text>
+
+  <!-- ══════════════ ПАНЕЛЬ: КТО ЕСТЬ КТО ══════════════ -->
+  <rect x="80" y="735" width="760" height="280" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="106" y="772" font-size="19" font-weight="bold" fill="#0f172a">Ollama ≠ Llama — кто есть кто</text>
+
+  <rect x="106" y="789" width="708" height="34" rx="8" fill="#fef2f2" stroke="#fca5a5" stroke-width="1.5"/>
+  <text x="120" y="811" font-size="13.5" fill="#991b1b">Под капотом Ollama не «Llama», а движок llama.cpp. Мы берём этот движок напрямую.</text>
+
+  <rect x="106" y="836" width="146" height="30" rx="7" fill="#ede9fe"/>
+  <text x="179" y="856" font-size="13.5" font-weight="bold" fill="#5b21b6" text-anchor="middle">Llama / Qwen</text>
+  <text x="266" y="856" font-size="14" fill="#334155">МОДЕЛЬ — файл весов .gguf, сам не запускается</text>
+
+  <rect x="106" y="877" width="146" height="30" rx="7" fill="#dcfce7"/>
+  <text x="179" y="897" font-size="13.5" font-weight="bold" fill="#15803d" text-anchor="middle">llama.cpp</text>
+  <text x="266" y="897" font-size="14" fill="#334155">ДВИЖОК — программа, которая крутит модель. MIT</text>
+
+  <rect x="106" y="918" width="146" height="30" rx="7" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="179" y="938" font-size="13.5" font-weight="bold" fill="#64748b" text-anchor="middle">Ollama</text>
+  <line x1="120" y1="933" x2="238" y2="933" stroke="#dc2626" stroke-width="2"/>
+  <text x="266" y="938" font-size="14" fill="#334155">ОБЁРТКА над llama.cpp <tspan fill="#dc2626" font-weight="bold">← её и убираем</tspan></text>
+
+  <rect x="106" y="959" width="146" height="30" rx="7" fill="#e0f2fe"/>
+  <text x="179" y="979" font-size="13.5" font-weight="bold" fill="#0369a1" text-anchor="middle">LM Studio</text>
+  <text x="266" y="979" font-size="14" fill="#334155">GUI-обёртка над тем же llama.cpp — если не любите терминал</text>
+
+  <!-- ══════════════ ПАНЕЛЬ: ЗАПУСК ══════════════ -->
+  <rect x="880" y="735" width="740" height="280" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="906" y="772" font-size="19" font-weight="bold" fill="#0f172a">Что запустить — 4 шага</text>
+
+  <circle cx="918" cy="806" r="12" fill="#ea580c"/>
+  <text x="918" y="811" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+  <text x="940" y="803" font-size="14" fill="#334155">Поставить OpenClaw <tspan fill="#94a3b8">(нужен Node 22.22.3+)</tspan></text>
+  <rect x="940" y="812" width="654" height="26" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="952" y="830" font-size="13" font-family="DejaVu Sans Mono, monospace" fill="#0f172a">npm install -g openclaw@latest</text>
+
+  <circle cx="918" cy="864" r="12" fill="#16a34a"/>
+  <text x="918" y="869" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+  <text x="940" y="861" font-size="14" fill="#334155">Поставить движок <tspan fill="#94a3b8">(Windows — zip из GitHub Releases)</tspan></text>
+  <rect x="940" y="870" width="654" height="26" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="952" y="888" font-size="13" font-family="DejaVu Sans Mono, monospace" fill="#0f172a">brew install llama.cpp</text>
+
+  <circle cx="918" cy="922" r="12" fill="#7c3aed"/>
+  <text x="918" y="927" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">3</text>
+  <text x="940" y="919" font-size="14" fill="#334155">Запустить модель <tspan fill="#94a3b8">— окно не закрывать</tspan></text>
+  <rect x="940" y="928" width="654" height="44" rx="6" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="952" y="945" font-size="12.5" font-family="DejaVu Sans Mono, monospace" fill="#0f172a">llama-server -hf unsloth/Qwen3-8B-GGUF:Q4_K_M --jinja</text>
+  <text x="952" y="964" font-size="12.5" font-family="DejaVu Sans Mono, monospace" fill="#0f172a">  -c 32768 --port 8080 --alias local-model</text>
+
+  <circle cx="918" cy="994" r="12" fill="#229ED9"/>
+  <text x="918" y="999" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
+  <text x="940" y="999" font-size="14" fill="#334155">Вписать токен в <tspan font-family="DejaVu Sans Mono, monospace" fill="#c2410c">~/.openclaw/openclaw.json</tspan> и <tspan font-family="DejaVu Sans Mono, monospace" fill="#c2410c">gateway restart</tspan></text>
+
+  <!-- ══════════════ ПАНЕЛЬ: СВЯЗЬ НАСТРОЕК ══════════════ -->
+  <rect x="80" y="1040" width="1540" height="250" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="106" y="1077" font-size="19" font-weight="bold" fill="#0f172a">Что с чем должно совпадать</text>
+  <text x="470" y="1077" font-size="14" fill="#64748b">— почти все поломки от того, что эти пары разъехались</text>
+
+  <text x="120" y="1108" font-size="12.5" font-weight="bold" fill="#94a3b8" letter-spacing="1">ПАРАМЕТР ЗАПУСКА</text>
+  <text x="700" y="1108" font-size="12.5" font-weight="bold" fill="#94a3b8" letter-spacing="1">ПОЛЕ В openclaw.json</text>
+
+  <line x1="106" y1="1119" x2="1594" y2="1119" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <text x="120" y="1148" font-size="13.5" font-family="DejaVu Sans Mono, monospace" fill="#15803d">--port 8080</text>
+  <line x1="640" y1="1143" x2="686" y2="1143" stroke="#ea580c" stroke-width="2" marker-end="url(#arrMap)"/>
+  <text x="700" y="1148" font-size="13.5" font-family="DejaVu Sans Mono, monospace" fill="#0f172a">"baseUrl": "http://127.0.0.1:8080/v1"</text>
+
+  <text x="120" y="1183" font-size="13.5" font-family="DejaVu Sans Mono, monospace" fill="#15803d">--alias local-model</text>
+  <line x1="640" y1="1178" x2="686" y2="1178" stroke="#ea580c" stroke-width="2" marker-end="url(#arrMap)"/>
+  <text x="700" y="1183" font-size="13.5" font-family="DejaVu Sans Mono, monospace" fill="#0f172a">"id": "local-model"   →   "primary": "llamacpp/local-model"</text>
+
+  <text x="120" y="1218" font-size="13.5" font-family="DejaVu Sans Mono, monospace" fill="#15803d">-c 32768</text>
+  <line x1="640" y1="1213" x2="686" y2="1213" stroke="#ea580c" stroke-width="2" marker-end="url(#arrMap)"/>
+  <text x="700" y="1218" font-size="13.5" font-family="DejaVu Sans Mono, monospace" fill="#0f172a">"contextWindow": 32768</text>
+  <text x="960" y="1218" font-size="13" fill="#64748b">меньше 16k нельзя — промпт не влезет</text>
+
+  <text x="120" y="1253" font-size="13.5" font-family="DejaVu Sans Mono, monospace" fill="#dc2626">--jinja</text>
+  <line x1="640" y1="1248" x2="686" y2="1248" stroke="#ea580c" stroke-width="2" marker-end="url(#arrMap)"/>
+  <text x="700" y="1253" font-size="13.5" fill="#991b1b" font-weight="bold">ОБЯЗАТЕЛЬНО.</text>
+  <text x="826" y="1253" font-size="13.5" fill="#334155">Без него не работают инструменты — бот будет молчать</text>
+
+  <line x1="106" y1="1268" x2="1594" y2="1268" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="120" y="1284" font-size="13" fill="#334155">Токен от <tspan font-weight="bold">@BotFather</tspan></text>
+  <line x1="640" y1="1279" x2="686" y2="1279" stroke="#ea580c" stroke-width="2" marker-end="url(#arrMap)"/>
+  <text x="700" y="1284" font-size="13" font-family="DejaVu Sans Mono, monospace" fill="#0f172a">"channels.telegram.botToken"</text>
+
+  <!-- ══════════════ ПОДВАЛ ══════════════ -->
+  <text x="80" y="1325" font-size="13.5" fill="#64748b">Модель под железо: 8 ГБ — Qwen3-4B · 16 ГБ — Qwen3-8B · 32 ГБ — Qwen3-14B. Мало памяти? Бесплатный ключ Google AI Studio (Gemini) — меняется одной строкой.</text>
+  <text x="1620" y="1325" font-size="13" fill="#94a3b8" text-anchor="end">openclaw/README.md</text>
+
+</svg>
