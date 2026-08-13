@@ -1,0 +1,144 @@
+# ClawDesk — локальный стек для разработки.
+# Боты НЕ описаны здесь: их контейнеры создаёт провижинер BFF динамически,
+# по одному на бота, с меткой clawdesk.bot=<botId>.
+#
+#   docker compose up -d
+#   открыть http://localhost:5173
+
+name: clawdesk
+
+services:
+  gateway:
+    image: openclaw/openclaw:latest
+    container_name: clawdesk-gateway
+    restart: unless-stopped
+    environment:
+      OPENCLAW_STATE_DIR: /state
+      # Gateway слушает внутри сети compose; наружу его не публикуем.
+      OPENCLAW_GATEWAY_BIND: 0.0.0.0
+      OPENCLAW_GATEWAY_PORT: "18789"
+      OPENCLAW_GATEWAY_AUTH_MODE: token
+      OPENCLAW_GATEWAY_TOKEN: ${GATEWAY_TOKEN:?set GATEWAY_TOKEN in .env}
+    volumes:
+      - gateway-state:/state
+      - workspaces:/state/workspaces
+      # Провижинер управляет контейнерами ботов через отдельный сокет-прокси,
+      # docker.sock внутрь gateway НЕ пробрасываем.
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:18789/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: clawdesk-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: clawdesk
+      POSTGRES_USER: clawdesk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clawdesk"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: clawdesk-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    networks: [internal]
+
+  minio:
+    image: minio/minio:latest
+    container_name: clawdesk-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER:-clawdesk}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:?set MINIO_PASSWORD in .env}
+    volumes:
+      - miniodata:/data
+    networks: [internal]
+
+  # Ограниченный прокси к docker API: только create/start/stop/pause контейнеров
+  # с меткой clawdesk.bot. Прямой доступ к docker.sock не выдаём никому.
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: clawdesk-docker-proxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: "1"
+      IMAGES: "1"
+      NETWORKS: "1"
+      VOLUMES: "1"
+      POST: "1"
+      EXEC: "0"
+      SWARM: "0"
+      SYSTEM: "0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [internal]
+
+  bff:
+    build: ../apps/bff
+    container_name: clawdesk-bff
+    restart: unless-stopped
+    depends_on:
+      gateway: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+    environment:
+      NODE_ENV: development
+      PORT: "8080"
+      DATABASE_URL: postgres://clawdesk:${POSTGRES_PASSWORD}@postgres:5432/clawdesk
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: clawdesk-artifacts
+      S3_ACCESS_KEY: ${MINIO_USER:-clawdesk}
+      S3_SECRET_KEY: ${MINIO_PASSWORD}
+      GATEWAY_URL: ws://gateway:18789
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN}
+      DOCKER_HOST: tcp://docker-proxy:2375
+      BOT_RUNTIME_IMAGE: clawdesk/bot-runtime:latest
+      BOT_IDLE_FREEZE_MINUTES: "10"
+    ports:
+      - "8080:8080"
+    volumes:
+      - workspaces:/state/workspaces
+      - chrome-profiles:/state/chrome-profiles
+    networks: [internal, edge]
+
+  web:
+    build: ../apps/web
+    container_name: clawdesk-web
+    restart: unless-stopped
+    depends_on: [bff]
+    environment:
+      # Браузер пользователя не в этой сети: обращения к API идут относительными
+      # путями, dev-сервер проксирует /api и /ws на bff.
+      VITE_API_BASE: /api
+      VITE_WS_PATH: /ws
+    ports:
+      - "5173:5173"
+    networks: [edge]
+
+volumes:
+  gateway-state:
+  workspaces:
+  chrome-profiles:
+  pgdata:
+  redisdata:
+  miniodata:
+
+networks:
+  internal:
+    internal: true
+  edge:

@@ -1,0 +1,149 @@
+{
+  "id": "invoices-weekly",
+  "name": "Еженедельный сбор счетов из почты в Notion",
+  "description": "Каждый понедельник собирает счета за прошедшую неделю из почтового ящика, заносит их в базу Notion «Расходы» и присылает сводку. Оплату не проводит — только готовит к подписи.",
+  "botId": "alice",
+  "version": 3,
+  "status": "published",
+  "source": {
+    "kind": "demonstration",
+    "recordingId": "rec_01J9X2K7",
+    "recordedAt": "2026-08-04T09:12:00Z",
+    "recordedBy": "user_owner"
+  },
+  "trigger": {
+    "type": "cron",
+    "cron": "0 10 * * 1",
+    "timezone": "Europe/Moscow"
+  },
+  "inputs": [
+    {
+      "name": "period",
+      "type": "daterange",
+      "required": true,
+      "source": "computed",
+      "description": "Прошедшая календарная неделя относительно момента запуска"
+    },
+    {
+      "name": "notionDatabaseId",
+      "type": "string",
+      "required": true,
+      "source": "constant",
+      "default": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    }
+  ],
+  "services": [
+    {
+      "id": "mailbox",
+      "domains": ["mail.example.com"],
+      "access": "oauth",
+      "criticality": "normal",
+      "preferApi": true
+    },
+    {
+      "id": "notion",
+      "domains": ["api.notion.com", "www.notion.so"],
+      "access": "api-key",
+      "criticality": "normal",
+      "preferApi": true
+    }
+  ],
+  "steps": [
+    {
+      "id": "s1",
+      "kind": "api",
+      "execution": "scripted",
+      "instruction": "Получить письма за период с вложениями PDF и отправителями из списка поставщиков",
+      "serviceId": "mailbox",
+      "inputRefs": ["period"],
+      "evidence": "value",
+      "onFail": "retry",
+      "maxRetries": 2
+    },
+    {
+      "id": "s2",
+      "kind": "llm",
+      "execution": "model",
+      "instruction": "Для каждого вложения определить: поставщик, номер счёта, дата, сумма, валюта, назначение. Пропустить всё, что не является счётом.",
+      "evidence": "value",
+      "onFail": "ask"
+    },
+    {
+      "id": "s3",
+      "kind": "llm",
+      "execution": "model",
+      "instruction": "Проверить, нет ли уже такой записи в базе Notion по паре (поставщик, номер счёта). Дубли не заносить.",
+      "serviceId": "notion",
+      "evidence": "value",
+      "decisionPoint": {
+        "question": "Запись уже существует?",
+        "branches": [
+          { "condition": "существует и суммы совпадают", "nextStepId": "s5" },
+          { "condition": "существует, но суммы различаются", "nextStepId": "s4b" },
+          { "condition": "не существует", "nextStepId": "s4" }
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "kind": "api",
+      "execution": "scripted",
+      "instruction": "Создать запись в базе Notion «Расходы» со всеми полями и приложить PDF",
+      "serviceId": "notion",
+      "inputRefs": ["notionDatabaseId"],
+      "evidence": "value",
+      "onFail": "retry",
+      "maxRetries": 2
+    },
+    {
+      "id": "s4b",
+      "kind": "human",
+      "execution": "model",
+      "instruction": "Расхождение суммы с существующей записью — показать обе версии и спросить, какую оставить",
+      "evidence": "screenshot",
+      "onFail": "abort"
+    },
+    {
+      "id": "s5",
+      "kind": "llm",
+      "execution": "model",
+      "instruction": "Сформировать сводку: сколько счетов, общая сумма по валютам, список с суммами, что требует внимания",
+      "evidence": "none"
+    }
+  ],
+  "acceptance": [
+    {
+      "assertion": "Каждый найденный счёт присутствует в базе Notion ровно один раз",
+      "method": "reread-record",
+      "target": "notion:database:a1b2c3d4"
+    },
+    {
+      "assertion": "Сумма в записи Notion совпадает с суммой в PDF до копейки",
+      "method": "recount"
+    },
+    {
+      "assertion": "К каждой записи приложен исходный PDF",
+      "method": "reread-record"
+    }
+  ],
+  "outputs": [
+    { "name": "summary", "type": "report", "deliverTo": "thread" },
+    { "name": "createdRecordIds", "type": "record-id", "deliverTo": "thread" }
+  ],
+  "budget": {
+    "maxUsd": 0.4,
+    "maxSeconds": 600,
+    "onExceed": "block"
+  },
+  "reporting": {
+    "notifyOn": ["success", "failure", "blocked", "approval"],
+    "summaryTemplate": "Счета за {{period}}: {{count}} шт. на {{total}}. Требует внимания: {{attention}}."
+  },
+  "health": {
+    "runs": 7,
+    "successRate": 0.857,
+    "lastRunAt": "2026-08-11T07:00:12Z",
+    "lastFailureReason": "Notion API 429 — превышен лимит запросов, повтор помог",
+    "retrainThreshold": 0.8
+  }
+}

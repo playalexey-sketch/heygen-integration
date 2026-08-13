@@ -1,0 +1,199 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://clawdesk.local/schemas/routine.schema.json",
+  "title": "RoutineSpec",
+  "description": "Обученная рутина ClawDesk. Результат обучения показом или текстом. Компилируется в SKILL.md и, для устойчивых шагов, в Playwright-скрипт.",
+  "type": "object",
+  "required": ["id", "name", "botId", "version", "trigger", "steps", "acceptance"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,63}$" },
+    "name": { "type": "string", "minLength": 3, "maxLength": 120 },
+    "description": { "type": "string", "maxLength": 2000 },
+    "botId": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "status": { "enum": ["draft", "testing", "published", "archived"], "default": "draft" },
+    "source": {
+      "description": "Как рутина была получена",
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["text", "demonstration", "suggested", "imported"] },
+        "recordingId": { "type": "string" },
+        "recordedAt": { "type": "string", "format": "date-time" },
+        "recordedBy": { "type": "string" }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["manual", "cron", "webhook", "watch"] },
+        "cron": { "type": "string", "description": "Например: 0 10 * * 1" },
+        "timezone": { "type": "string", "default": "Europe/Moscow" },
+        "webhookPath": { "type": "string" },
+        "watch": {
+          "type": "object",
+          "properties": {
+            "kind": { "enum": ["mailbox", "folder", "table", "page"] },
+            "target": { "type": "string" },
+            "pollSeconds": { "type": "integer", "minimum": 30, "default": 300 }
+          }
+        }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "enum": ["string", "number", "date", "daterange", "file", "enum", "secretRef"] },
+          "required": { "type": "boolean", "default": true },
+          "default": {},
+          "enumValues": { "type": "array", "items": { "type": "string" } },
+          "source": {
+            "description": "Откуда берётся значение, если не задано человеком",
+            "enum": ["ask", "trigger", "previousRun", "constant", "computed"],
+            "default": "ask"
+          },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "services": {
+      "description": "Сервисы, к которым обращается рутина. Используются для egress-allowlist и проверки доступов перед запуском.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "access"],
+        "properties": {
+          "id": { "type": "string" },
+          "domains": { "type": "array", "items": { "type": "string" } },
+          "access": { "enum": ["browser-login", "api-key", "oauth"] },
+          "criticality": { "enum": ["normal", "critical"], "default": "normal" },
+          "preferApi": { "type": "boolean", "default": true }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "instruction"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": {
+            "enum": ["browser", "api", "llm", "shell", "human"],
+            "description": "browser/api — детерминированные; llm — шаг суждения; human — требует человека"
+          },
+          "execution": {
+            "enum": ["scripted", "model"],
+            "default": "model",
+            "description": "scripted — исполняется сгенерированным Playwright/HTTP-кодом; model — решает агент"
+          },
+          "instruction": { "type": "string", "description": "Человеко-читаемое описание шага" },
+          "serviceId": { "type": "string" },
+          "url": { "type": "string" },
+          "selectorHints": {
+            "type": "array",
+            "description": "Кандидаты локаторов в порядке предпочтения: role/label устойчивее css/xpath",
+            "items": {
+              "type": "object",
+              "properties": {
+                "strategy": { "enum": ["role", "label", "text", "testid", "css", "xpath"] },
+                "value": { "type": "string" },
+                "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          },
+          "inputRefs": { "type": "array", "items": { "type": "string" } },
+          "requiresApproval": { "type": "boolean", "default": false },
+          "approvalReason": { "type": "string" },
+          "evidence": { "enum": ["screenshot", "dom", "value", "none"], "default": "screenshot" },
+          "timeoutSeconds": { "type": "integer", "minimum": 5, "default": 120 },
+          "onFail": { "enum": ["retry", "ask", "abort", "skip"], "default": "retry" },
+          "maxRetries": { "type": "integer", "minimum": 0, "maximum": 3, "default": 2 },
+          "decisionPoint": {
+            "description": "Точка ветвления, выявленная при обучении",
+            "type": "object",
+            "properties": {
+              "question": { "type": "string" },
+              "branches": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "condition": { "type": "string" },
+                    "nextStepId": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "acceptance": {
+      "description": "Definition of Done: проверяемые утверждения, которые бот обязан подтвердить на шаге verifying",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["assertion", "method"],
+        "properties": {
+          "assertion": { "type": "string" },
+          "method": {
+            "enum": ["reread-record", "reopen-url", "recount", "checksum", "sent-folder", "manual"],
+            "description": "Способ независимой проверки — обязательно отличный от способа создания результата"
+          },
+          "target": { "type": "string" }
+        }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "enum": ["string", "number", "file", "url", "record-id", "report"] },
+          "deliverTo": { "enum": ["thread", "channel", "storage", "none"], "default": "thread" }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "maxUsd": { "type": "number", "minimum": 0, "default": 0.5 },
+        "maxSeconds": { "type": "integer", "minimum": 30, "default": 900 },
+        "onExceed": { "enum": ["block", "notify"], "default": "block" }
+      }
+    },
+    "reporting": {
+      "type": "object",
+      "properties": {
+        "notifyOn": {
+          "type": "array",
+          "items": { "enum": ["success", "failure", "blocked", "approval"] },
+          "default": ["failure", "blocked", "approval"]
+        },
+        "summaryTemplate": { "type": "string" }
+      }
+    },
+    "health": {
+      "description": "Метрики надёжности, обновляются рантаймом. Падение successRate ниже порога → предложение переобучить.",
+      "type": "object",
+      "properties": {
+        "runs": { "type": "integer" },
+        "successRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "lastRunAt": { "type": "string", "format": "date-time" },
+        "lastFailureReason": { "type": "string" },
+        "retrainThreshold": { "type": "number", "default": 0.8 }
+      }
+    }
+  }
+}

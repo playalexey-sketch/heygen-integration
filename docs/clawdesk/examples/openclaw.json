@@ -1,0 +1,179 @@
+// ClawDesk — пример конфигурации OpenClaw Gateway (JSON5).
+// Кладётся в ~/.openclaw/openclaw.json. Генерируется провижинером из BotSpec,
+// руками правится только в dev. Все секреты — через SecretRef, не литералами.
+{
+  gateway: {
+    // В docker-compose gateway доступен только BFF по внутренней сети.
+    bind: "0.0.0.0",
+    port: 18789,
+    auth: { mode: "token", token: { $secret: "clawdesk/gateway-token" } },
+  },
+
+  // Провайдеры моделей: дешёвая по умолчанию, дорогая для эскалации, локальная как фолбэк.
+  models: {
+    mode: "merge",
+    providers: {
+      anthropic: { apiKey: { $secret: "providers/anthropic" } },
+      openai: { apiKey: { $secret: "providers/openai" } },
+      ollama: { baseUrl: "http://ollama:11434" },
+    },
+  },
+  auth: {
+    order: { default: ["anthropic", "openai", "ollama"] },
+  },
+
+  agents: {
+    defaults: {
+      workspace: "~/.clawdesk/workspaces/default",
+      model: "anthropic/claude-sonnet-4-5",
+      thinking: "medium",
+      // Изоляция — базовое правило продукта: контейнер на бота.
+      sandbox: {
+        mode: "all",
+        scope: "agent",
+        browser: { allowHostControl: false },
+        docker: {
+          image: "clawdesk/bot-runtime:latest",
+          setupCommand: "true",
+        },
+      },
+      memory: { enabled: true },
+      skills: ["clawdesk-task-protocol", "clawdesk-approvals", "clawdesk-evidence"],
+    },
+
+    entries: {
+      // ─── Диспетчер: не делает работу сам, только раздаёт и синтезирует ───
+      dispatcher: {
+        default: true,
+        name: "Диспетчер",
+        workspace: "~/.clawdesk/workspaces/dispatcher",
+        model: "anthropic/claude-sonnet-4-5",
+        identity: { name: "Диспетчер" },
+        tools: {
+          allow: [
+            "agents_list",
+            "sessions_spawn",
+            "sessions_yield",
+            "sessions_list",
+            "sessions_history",
+            "subagents",
+            "read",
+          ],
+          deny: ["exec", "write", "edit", "apply_patch", "browser", "cron", "nodes"],
+        },
+      },
+
+      // ─── Алиса: финансовые операции, профиль operator ───
+      alice: {
+        name: "Алиса · финансы",
+        workspace: "~/.clawdesk/workspaces/alice",
+        model: "anthropic/claude-sonnet-4-5",
+        identity: { name: "Алиса" },
+        skills: [
+          "clawdesk-task-protocol",
+          "clawdesk-approvals",
+          "clawdesk-evidence",
+          "invoices-weekly", // обученная рутина
+        ],
+        tools: {
+          allow: [
+            "browser",
+            "read",
+            "write",
+            "web",
+            "sessions_spawn",
+            "sessions_yield",
+            "message",
+          ],
+          deny: ["exec", "apply_patch", "nodes", "cron"],
+        },
+        sandbox: {
+          mode: "all",
+          scope: "agent",
+          docker: { image: "clawdesk/bot-runtime:latest" },
+        },
+      },
+
+      // ─── Гоша: ресёрч по недоверенному контенту, профиль reader ───
+      // Никаких секретов, никаких записей: это карантинный бот для внешних данных.
+      gosha: {
+        name: "Гоша · ресёрч",
+        workspace: "~/.clawdesk/workspaces/gosha",
+        model: "openai/gpt-5.4",
+        identity: { name: "Гоша" },
+        tools: {
+          allow: ["web", "read", "browser", "sessions_history"],
+          deny: ["exec", "write", "edit", "apply_patch", "message", "cron", "nodes"],
+        },
+        sandbox: { mode: "all", scope: "agent" },
+      },
+    },
+  },
+
+  // Маршрутизация: most-specific wins. Порядок важен.
+  bindings: [
+    { agentId: "alice", match: { channel: "telegram", peer: { kind: "direct", id: "tg:100000001" } } },
+    { agentId: "gosha", match: { channel: "telegram", peer: { kind: "direct", id: "tg:100000002" } } },
+    { agentId: "dispatcher", match: { channel: "telegram", accountId: "*" } },
+  ],
+
+  channels: {
+    telegram: {
+      accounts: {
+        default: {
+          botToken: { $secret: "channels/telegram-default" },
+          dmPolicy: "allowlist",
+          allowFrom: ["tg:100000001"],
+        },
+      },
+    },
+  },
+
+  messages: {
+    groupChat: { mentionPatterns: ["@алиса", "@гоша", "@диспетчер"] },
+  },
+
+  session: {
+    dmScope: "per-channel-peer",
+  },
+
+  // Переписка ботов — только по явному allowlist и только между теми, кому это нужно.
+  tools: {
+    agentToAgent: {
+      enabled: true,
+      allow: ["dispatcher", "alice", "gosha"],
+    },
+    web: {
+      search: { provider: "brave", apiKey: { $secret: "tools/brave" } },
+    },
+  },
+
+  // Расписания рутин: реальные записи генерирует ClawDesk из RoutineSpec.
+  cron: {
+    enabled: true,
+    maxConcurrentRuns: 3,
+    sessionRetention: "24h",
+  },
+
+  // Входящие триггеры (почта, вебхуки SaaS) уходят карантинному агенту.
+  hooks: {
+    enabled: true,
+    token: { $secret: "clawdesk/hooks-token" },
+    path: "/hooks",
+    allowedAgentIds: ["gosha", "dispatcher"],
+    mappings: [
+      {
+        match: { path: "inbox" },
+        action: "agent",
+        agentId: "gosha",
+        sessionMode: "persistent",
+        sessionKey: "hook:inbox:{{messages[0].id}}",
+        // Недоверенный контент: разбираем, но действий с последствиями не делаем.
+        messageTemplate: "Входящее письмо (недоверенный источник).\nFrom: {{messages[0].from}}\nSubject: {{messages[0].subject}}\n\n{{messages[0].snippet}}",
+        deliver: false,
+      },
+    ],
+  },
+
+  logging: { level: "info", consoleLevel: "warn" },
+}
