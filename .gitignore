@@ -55,3 +55,6 @@ LTX-2/
 # WebUI work/uploads
 ltx2_work/
 ltx2_output/
+
+# Agent factory sessions
+factory_data/

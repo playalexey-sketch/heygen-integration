@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Фабрика агентов — локальный Qwen</title>
+<style>
+  :root {
+    --bg: #090c13;
+    --panel: #101621;
+    --panel2: #172033;
+    --line: #273449;
+    --text: #e8eef8;
+    --muted: #8b97ad;
+    --accent: #5b8cff;
+    --accent2: #3ee0b0;
+    --warn: #f5c16c;
+    --danger: #ff6b8a;
+    --shadow: 0 18px 50px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, rgba(91,140,255,.16), transparent 50%),
+      radial-gradient(900px 400px at 100% 0%, rgba(62,224,176,.08), transparent 45%),
+      var(--bg);
+    color: var(--text);
+    font: 14.5px/1.45 "Segoe UI", system-ui, sans-serif;
+    display: grid;
+    grid-template-columns: 248px 1fr;
+    min-height: 100vh;
+  }
+  aside {
+    border-right: 1px solid var(--line);
+    background: rgba(16,22,33,.92);
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .brand { display: flex; gap: 10px; align-items: center; padding: 4px 8px 16px; }
+  .logo {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), #7c5cff);
+    font-size: 20px;
+  }
+  .brand h1 { margin: 0; font-size: 15px; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+  nav button {
+    width: 100%; text-align: left; border: 0; cursor: pointer;
+    background: transparent; color: var(--text);
+    padding: 10px 12px; border-radius: 10px; font-size: 14px;
+  }
+  nav button:hover { background: var(--panel2); }
+  nav button.active { background: #1d2b48; color: #dbe7ff; }
+  .pill {
+    margin-top: auto; padding: 10px 12px; border-radius: 12px;
+    background: var(--panel2); border: 1px solid var(--line); font-size: 12px; color: var(--muted);
+  }
+  .pill b { color: var(--text); font-weight: 600; display: block; margin-bottom: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--danger); margin-right: 6px; }
+  .dot.ok { background: var(--accent2); }
+  .dot.warn { background: var(--warn); }
+  main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  header.top {
+    padding: 14px 22px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  header.top h2 { margin: 0; font-size: 18px; font-weight: 650; }
+  header.top .sub { color: var(--muted); font-size: 13px; }
+  .grow { flex: 1; }
+  button.btn, .btn {
+    border: 0; cursor: pointer; border-radius: 10px;
+    padding: 8px 14px; font-weight: 650; font-size: 13px;
+    background: linear-gradient(135deg, var(--accent), #7c5cff); color: #071018;
+  }
+  .btn.ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+  .btn.good { background: linear-gradient(135deg, #1f8f6d, var(--accent2)); }
+  .btn.warn { background: linear-gradient(135deg, #b8862b, var(--warn)); color: #1a1306; }
+  .btn.danger { background: linear-gradient(135deg, #b43b55, var(--danger)); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .view { display: none; flex: 1; min-height: 0; }
+  .view.active { display: flex; flex-direction: column; }
+  .pad { padding: 18px 22px 22px; overflow: auto; }
+  .grid { display: grid; gap: 14px; }
+  .cards { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 14px; box-shadow: var(--shadow);
+  }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0; color: var(--muted); font-size: 13px; }
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .tag {
+    font-size: 11px; padding: 3px 8px; border-radius: 999px;
+    background: #22304a; color: #c9d6ee; border: 1px solid var(--line);
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  label.field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+  input, textarea, select {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 10px; padding: 9px 11px; font: inherit; outline: none; width: 100%;
+  }
+  textarea { min-height: 88px; resize: vertical; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  .banner {
+    margin: 0 22px 12px; padding: 10px 14px; border-radius: 12px;
+    background: #2a2414; border: 1px solid #6b5420; color: #f6e3b3; font-size: 13px;
+  }
+  .banner.ok { background: #132920; border-color: #1f6b52; color: #b8f3de; }
+  .banner.bad { background: #2a1520; border-color: #7a3148; color: #ffd0db; }
+  #chat-log, #console-log {
+    flex: 1; overflow: auto; padding: 18px 22px;
+  }
+  .msg { display: flex; gap: 10px; margin: 0 auto 14px; max-width: 860px; }
+  .msg .av {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    display: grid; place-items: center; background: #243049; font-size: 18px;
+  }
+  .bubble {
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 14px;
+    padding: 10px 12px; white-space: pre-wrap; word-break: break-word;
+  }
+  .msg.user { flex-direction: row-reverse; }
+  .msg.user .bubble { background: #24365c; border-color: var(--accent); }
+  .who { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .composer {
+    display: flex; gap: 10px; padding: 12px 22px 18px;
+    border-top: 1px solid var(--line); background: rgba(16,22,33,.8);
+  }
+  .composer textarea { min-height: 46px; max-height: 140px; }
+  .modal {
+    position: fixed; inset: 0; background: rgba(5,8,14,.62);
+    display: none; align-items: center; justify-content: center; padding: 20px; z-index: 20;
+  }
+  .modal.show { display: flex; }
+  .modal .sheet {
+    width: min(640px, 100%); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 18px; padding: 18px; box-shadow: var(--shadow); max-height: 90vh; overflow: auto;
+  }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .check {
+    display: flex; gap: 8px; align-items: center; padding: 8px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel2);
+  }
+  .split { display: grid; grid-template-columns: 220px 1fr; min-height: 0; flex: 1; }
+  .roster { border-right: 1px solid var(--line); padding: 14px; overflow: auto; }
+  .agent-mini {
+    display: flex; gap: 8px; align-items: center; padding: 8px; border-radius: 10px; margin-bottom: 8px;
+    border: 1px solid transparent;
+  }
+  .agent-mini.on { border-color: var(--accent2); background: #163028; }
+  .status-badge {
+    font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    padding: 4px 8px; border-radius: 999px; background: #22304a;
+  }
+  .status-badge.wait { background: #3a2d12; color: var(--warn); }
+  .status-badge.run { background: #123528; color: var(--accent2); }
+  .status-badge.done { background: #1d2b48; color: #bcd0ff; }
+  .status-badge.err { background: #3a1520; color: var(--danger); }
+  .hint { color: var(--muted); font-size: 12px; }
+  .cursor::after { content: "▋"; color: var(--accent2); animation: blink 1s step-start infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (max-width: 860px) {
+    body { grid-template-columns: 1fr; }
+    aside { display: none; }
+    .split { grid-template-columns: 1fr; }
+    .roster { display: none; }
+  }
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <div class="logo">⚡</div>
+    <div>
+      <h1>Фабрика агентов</h1>
+      <p>Qwen локально · вы за пультом</p>
+    </div>
+  </div>
+  <nav>
+    <button class="active" data-view="chat">💬 Чат</button>
+    <button data-view="agents">🎭 Агенты</button>
+    <button data-view="factories">🏭 Фабрики</button>
+    <button data-view="console">👁️ Пульт</button>
+    <button data-view="guide">📘 Как поднять модель</button>
+  </nav>
+  <div class="pill">
+    <b><span class="dot" id="dot"></span><span id="backend-name">проверка…</span></b>
+    <div id="backend-model">модель не выбрана</div>
+  </div>
+</aside>
+
+<main>
+  <header class="top">
+    <div>
+      <h2 id="title">Чат</h2>
+      <div class="sub" id="subtitle">Обычный разговор с вашей локальной моделью</div>
+    </div>
+    <div class="grow"></div>
+    <button class="btn ghost" id="btn-settings">Настройки модели</button>
+  </header>
+  <div id="banner" class="banner" style="display:none"></div>
+
+  <section class="view active" id="view-chat">
+    <div id="chat-log"></div>
+    <form class="composer" id="chat-form">
+      <textarea id="chat-input" rows="1" placeholder="Напишите как человеку…"></textarea>
+      <button class="btn" type="submit">Отправить</button>
+    </form>
+  </section>
+
+  <section class="view" id="view-agents">
+    <div class="pad">
+      <div class="row" style="margin:0 0 14px">
+        <button class="btn" id="btn-new-agent">+ Новый агент</button>
+        <span class="hint">Короткая роль лучше длинной инструкции — особенно на 1.5B.</span>
+      </div>
+      <div class="grid cards" id="agent-grid"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-factories">
+    <div class="pad">
+      <div class="row" style="margin:0 0 14px">
+        <button class="btn" id="btn-new-factory">+ Новая фабрика</button>
+        <span class="hint">Агенты говорят по очереди. Вы жмёте «Далее» и при необходимости вмешиваетесь.</span>
+      </div>
+      <div class="grid cards" id="factory-grid"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-console">
+    <div class="split">
+      <div class="roster">
+        <div class="hint" id="run-meta">Прогон не выбран</div>
+        <div id="roster"></div>
+        <div class="row">
+          <button class="btn good" id="btn-next">Далее</button>
+          <button class="btn warn" id="btn-pause">Пауза</button>
+          <button class="btn ghost" id="btn-resume">Дальше сами</button>
+          <button class="btn danger" id="btn-stop">Стоп</button>
+          <button class="btn ghost" id="btn-sum">Итог</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;min-width:0;min-height:0">
+        <div id="console-log"></div>
+        <form class="composer" id="inject-form">
+          <textarea id="inject-input" rows="1" placeholder="Указание руководителя: «не фантазируйте цифры», «переходите к плану»…"></textarea>
+          <button class="btn warn" type="submit">Вмешаться</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-guide">
+    <div class="pad" style="max-width:820px">
+      <div class="card">
+        <h3>1. Импортировать скачанный GGUF в LM Studio / Bionic</h3>
+        <p>Bionic берёт модели из библиотеки LM Studio. Файл, который вы скачали сами, нужно импортировать:</p>
+        <pre style="white-space:pre-wrap;background:#0b1018;padding:12px;border-radius:10px;border:1px solid var(--line)">lms import "C:\путь\к\Qwen2.5-1.5B-Instruct-*.gguf" --copy --user-repo Qwen/Qwen2.5-1.5B-Instruct -y</pre>
+        <p class="hint" style="margin-top:8px">Если команды <code>lms</code> нет: откройте LM Studio → Settings → включите CLI. Либо положите файл сюда:<br>
+        <code>%USERPROFILE%\.lmstudio\models\Qwen\Qwen2.5-1.5B-Instruct\модель.gguf</code></p>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>2. Человеческий чат в Bionic</h3>
+        <p>Откройте Bionic → выберите локальную Qwen 1.5B → Work project. Это обычный чат и один агент, который трогает файлы. На 1.5B он слабый: для писем и коротких вопросов ок, для кода и длинных задач — нет.</p>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>3. Почему фабрику агентов Bionic не заменит</h3>
+        <p>Bionic — один агент в одном окне. Он не создаёт несколько ролей, которые спорят друг с другом, пока вы только смотрите. Для этого и сделан этот пульт.</p>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>4. Отдать модель фабрике</h3>
+        <p>В классическом LM Studio: вкладка Developer → Start Server (порт 1234). Или в терминале:</p>
+        <pre style="white-space:pre-wrap;background:#0b1018;padding:12px;border-radius:10px;border:1px solid var(--line)">lms load Qwen2.5-1.5B-Instruct --gpu=off
+lms server start --port 1234</pre>
+        <p style="margin-top:8px">Потом здесь, в «Настройках модели», нажмите «Найти сервер». Должно появиться LM Studio. Дальше создаёте фабрику и сидите на пульте.</p>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>Честно про 1.5B</h3>
+        <p>Qwen2.5-1.5B умеет болтать. Он плохо держит сложные роли, инструменты и длинный план. Для живой фабрики поставьте хотя бы <b>Qwen2.5-7B-Instruct Q4_K_M</b> (~4.5 ГБ) или Qwen3-8B. 1.5B годится, чтобы понять схему: 2–3 агента, короткие ходы, вы жмёте «Далее».</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal-settings">
+  <div class="sheet">
+    <h3>Подключение к модели</h3>
+    <p class="hint">Сначала поднимите сервер в LM Studio / llama.cpp / Ollama. Если сервера нет — будет демо-режим, чтобы понять пульт.</p>
+    <div class="grid" style="margin-top:12px">
+      <label class="field">Бэкенд
+        <select id="set-backend">
+          <option value="auto">авто</option>
+          <option value="lmstudio">LM Studio / Bionic runtime (:1234)</option>
+          <option value="llamacpp">llama.cpp (:8080)</option>
+          <option value="ollama">Ollama (:11434)</option>
+          <option value="custom">свой URL</option>
+          <option value="mock">демо без модели</option>
+        </select>
+      </label>
+      <label class="field">URL (если свой)
+        <input id="set-url" placeholder="http://127.0.0.1:1234/v1">
+      </label>
+      <label class="field">Имя модели (пусто = первая / Qwen)
+        <input id="set-model" placeholder="qwen2.5-1.5b-instruct">
+      </label>
+    </div>
+    <div class="row">
+      <button class="btn" id="btn-detect">Найти сервер</button>
+      <button class="btn good" id="btn-save-set">Сохранить</button>
+      <button class="btn ghost" data-close="modal-settings">Закрыть</button>
+    </div>
+    <pre id="detect-out" class="hint" style="white-space:pre-wrap;margin-top:12px"></pre>
+  </div>
+</div>
+
+<div class="modal" id="modal-agent">
+  <div class="sheet">
+    <h3 id="agent-modal-title">Новый агент</h3>
+    <input type="hidden" id="ag-id">
+    <div class="grid" style="margin-top:12px">
+      <label class="field">Имя <input id="ag-name" placeholder="Маркетолог"></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <label class="field">Эмодзи <input id="ag-emoji" value="🤖"></label>
+        <label class="field">Цвет <input id="ag-color" type="color" value="#5b8cff"></label>
+        <label class="field">Роль-ключ <input id="ag-role" placeholder="custom"></label>
+      </div>
+      <label class="field">Стиль <input id="ag-style" placeholder="коротко, резко, без воды"></label>
+      <label class="field">Кто ты (системный промпт)
+        <textarea id="ag-system" placeholder="Ты маркетолог. Пишешь офферы. Без воды."></textarea>
+      </label>
+    </div>
+    <div class="row">
+      <button class="btn" id="btn-save-agent">Сохранить</button>
+      <button class="btn ghost" data-close="modal-agent">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-factory">
+  <div class="sheet">
+    <h3>Новая фабрика</h3>
+    <div class="grid" style="margin-top:12px">
+      <label class="field">Название <input id="fac-name" placeholder="Разбор продукта"></label>
+      <label class="field">Цель — что команда должна получить
+        <textarea id="fac-goal" placeholder="Собрать план запуска телеграм-бота за неделю"></textarea>
+      </label>
+      <label class="field">Кто участвует</label>
+      <div class="checks" id="fac-agents"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <label class="field">Режим
+          <select id="fac-mode">
+            <option value="round_robin">по кругу</option>
+            <option value="pipeline">конвейер</option>
+            <option value="debate">спор</option>
+          </select>
+        </label>
+        <label class="field">Раундов <input id="fac-rounds" type="number" min="2" max="12" value="5"></label>
+        <label class="field">Токенов на ход <input id="fac-tokens" type="number" min="60" max="400" value="180"></label>
+      </div>
+      <label class="field" style="flex-direction:row;align-items:center;gap:8px">
+        <input id="fac-auto" type="checkbox" style="width:auto">
+        Пусть идут сами, без кнопки «Далее»
+      </label>
+    </div>
+    <div class="row">
+      <button class="btn" id="btn-save-factory">Создать</button>
+      <button class="btn ghost" data-close="modal-factory">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-start">
+  <div class="sheet">
+    <h3>Запуск фабрики</h3>
+    <p class="hint" id="start-name"></p>
+    <label class="field">Дополнительная установка (необязательно)
+      <textarea id="start-brief" placeholder="Говорите коротко. Не придумывайте цифры. Итог — список из 5 шагов."></textarea>
+    </label>
+    <div class="row">
+      <button class="btn good" id="btn-do-start">Запустить и сесть за пульт</button>
+      <button class="btn ghost" data-close="modal-start">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const state = {
+  view: 'chat',
+  agents: [],
+  factories: [],
+  health: null,
+  chat: [],
+  run: null,
+  es: null,
+  startFactoryId: null,
+};
+
+const titles = {
+  chat: ['Чат', 'Обычный разговор с вашей локальной моделью'],
+  agents: ['Агенты', 'Роли, которые потом сядут за общий стол'],
+  factories: ['Фабрики', 'Состав, цель и режим. Вы только запускаете и смотрите'],
+  console: ['Пульт руководителя', 'Агенты говорят. Вы разрешаете ход, вмешиваетесь или стопаете'],
+  guide: ['Как поднять Qwen', 'GGUF → LM Studio / Bionic → этот пульт'],
+};
+
+function showBanner(text, kind) {
+  const el = $('banner');
+  if (!text) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.className = 'banner' + (kind === 'ok' ? ' ok' : kind === 'bad' ? ' bad' : '');
+  el.textContent = text;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function go(view) {
+  state.view = view;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
+  $('title').textContent = titles[view][0];
+  $('subtitle').textContent = titles[view][1];
+}
+
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => go(b.dataset.view)));
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => $(b.dataset.close).classList.remove('show')));
+
+async function api(path, opts) {
+  const r = await fetch(path, Object.assign({
+    headers: {'Content-Type': 'application/json'},
+  }, opts || {}));
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || data.error || r.statusText);
+  return data;
+}
+
+async function refreshHealth() {
+  try {
+    const h = await api('/api/health');
+    state.health = h;
+    const cur = h.current || {};
+    $('backend-name').textContent = cur.name || cur.id || 'нет сервера';
+    $('backend-model').textContent = h.demo
+      ? 'демо-режим (модель не найдена)'
+      : (h.model || 'модель не выбрана');
+    $('dot').className = 'dot ' + (h.demo ? 'warn' : (cur.ok ? 'ok' : ''));
+    if (h.demo) {
+      showBanner('Локальная модель не отвечает. Можно смотреть фабрику в демо-режиме, либо поднимите LM Studio на порту 1234 и нажмите «Найти сервер».', '');
+    } else {
+      showBanner('Подключено: ' + (cur.name || '') + ' · ' + (h.model || ''), 'ok');
+    }
+    $('set-backend').value = (h.settings && h.settings.backend) || 'auto';
+    $('set-url').value = (h.settings && h.settings.base_url) || '';
+    $('set-model').value = (h.settings && h.settings.model) || '';
+  } catch (e) {
+    $('backend-name').textContent = 'нет связи с пультом';
+    showBanner('Сервер пульта не отвечает: ' + e.message, 'bad');
+  }
+}
+
+function renderAgents() {
+  $('agent-grid').innerHTML = state.agents.map(a => `
+    <div class="card">
+      <h3>${esc(a.emoji || '🤖')} ${esc(a.name)}</h3>
+      <p>${esc(a.system || '')}</p>
+      <div class="meta">
+        <span class="tag">${esc(a.role || 'role')}</span>
+        <span class="tag">${esc(a.style || 'стиль не задан')}</span>
+      </div>
+      <div class="row">
+        <button class="btn ghost" onclick='editAgent(${JSON.stringify(a.id)})'>Править</button>
+        <button class="btn danger" onclick='delAgent(${JSON.stringify(a.id)})'>Удалить</button>
+      </div>
+    </div>
+  `).join('') || '<p class="hint">Агентов нет</p>';
+}
+
+function renderFactories() {
+  const byId = Object.fromEntries(state.agents.map(a => [a.id, a]));
+  $('factory-grid').innerHTML = state.factories.map(f => {
+    const names = (f.agent_ids || []).map(id => (byId[id] ? (byId[id].emoji + ' ' + byId[id].name) : id)).join(' · ');
+    return `
+      <div class="card">
+        <h3>${esc(f.name)}</h3>
+        <p>${esc(f.goal)}</p>
+        <div class="meta">
+          <span class="tag">${esc(f.mode)}</span>
+          <span class="tag">${f.max_rounds} раундов</span>
+          <span class="tag">${f.auto_continue ? 'сами' : 'вы жмёте Далее'}</span>
+        </div>
+        <p class="hint">${esc(names)}</p>
+        <div class="row">
+          <button class="btn good" onclick='openStart(${JSON.stringify(f.id)})'>Запустить</button>
+          <button class="btn danger" onclick='delFactory(${JSON.stringify(f.id)})'>Удалить</button>
+        </div>
+      </div>`;
+  }).join('') || '<p class="hint">Фабрик нет</p>';
+}
+
+async function refreshLists() {
+  state.agents = await api('/api/agents');
+  state.factories = await api('/api/factories');
+  renderAgents();
+  renderFactories();
+}
+
+function editAgent(id) {
+  const a = state.agents.find(x => x.id === id);
+  if (!a) return;
+  $('agent-modal-title').textContent = 'Редактировать агента';
+  $('ag-id').value = a.id;
+  $('ag-name').value = a.name || '';
+  $('ag-emoji').value = a.emoji || '🤖';
+  $('ag-color').value = a.color || '#5b8cff';
+  $('ag-role').value = a.role || 'custom';
+  $('ag-style').value = a.style || '';
+  $('ag-system').value = a.system || '';
+  $('modal-agent').classList.add('show');
+}
+
+async function delAgent(id) {
+  if (!confirm('Удалить агента?')) return;
+  await api('/api/agents/' + id, {method: 'DELETE'});
+  await refreshLists();
+}
+
+async function delFactory(id) {
+  if (!confirm('Удалить фабрику?')) return;
+  await api('/api/factories/' + id, {method: 'DELETE'});
+  await refreshLists();
+}
+
+function openStart(id) {
+  const f = state.factories.find(x => x.id === id);
+  state.startFactoryId = id;
+  $('start-name').textContent = f ? (f.name + ' — ' + f.goal) : id;
+  $('start-brief').value = '';
+  $('modal-start').classList.add('show');
+}
+
+$('btn-new-agent').onclick = () => {
+  $('agent-modal-title').textContent = 'Новый агент';
+  $('ag-id').value = '';
+  $('ag-name').value = '';
+  $('ag-emoji').value = '🤖';
+  $('ag-color').value = '#5b8cff';
+  $('ag-role').value = 'custom';
+  $('ag-style').value = '';
+  $('ag-system').value = '';
+  $('modal-agent').classList.add('show');
+};
+
+$('btn-save-agent').onclick = async () => {
+  const payload = {
+    id: $('ag-id').value || undefined,
+    name: $('ag-name').value,
+    emoji: $('ag-emoji').value,
+    color: $('ag-color').value,
+    role: $('ag-role').value,
+    style: $('ag-style').value,
+    system: $('ag-system').value,
+  };
+  try {
+    if (payload.id) await api('/api/agents/' + payload.id, {method:'PUT', body: JSON.stringify(payload)});
+    else await api('/api/agents', {method:'POST', body: JSON.stringify(payload)});
+    $('modal-agent').classList.remove('show');
+    await refreshLists();
+  } catch (e) { alert(e.message); }
+};
+
+$('btn-new-factory').onclick = () => {
+  $('fac-name').value = '';
+  $('fac-goal').value = '';
+  $('fac-mode').value = 'round_robin';
+  $('fac-rounds').value = 5;
+  $('fac-tokens').value = 180;
+  $('fac-auto').checked = false;
+  $('fac-agents').innerHTML = state.agents.map(a => `
+    <label class="check">
+      <input type="checkbox" value="${esc(a.id)}">
+      <span>${esc(a.emoji)} ${esc(a.name)}</span>
+    </label>`).join('');
+  $('modal-factory').classList.add('show');
+};
+
+$('btn-save-factory').onclick = async () => {
+  const ids = [...document.querySelectorAll('#fac-agents input:checked')].map(i => i.value);
+  try {
+    await api('/api/factories', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: $('fac-name').value,
+        goal: $('fac-goal').value,
+        agent_ids: ids,
+        mode: $('fac-mode').value,
+        max_rounds: +$('fac-rounds').value,
+        max_tokens: +$('fac-tokens').value,
+        auto_continue: $('fac-auto').checked,
+      })
+    });
+    $('modal-factory').classList.remove('show');
+    await refreshLists();
+  } catch (e) { alert(e.message); }
+};
+
+$('btn-do-start').onclick = async () => {
+  try {
+    const run = await api('/api/factories/' + state.startFactoryId + '/start', {
+      method: 'POST',
+      body: JSON.stringify({brief: $('start-brief').value})
+    });
+    $('modal-start').classList.remove('show');
+    attachRun(run.id);
+    go('console');
+  } catch (e) { alert(e.message); }
+};
+
+function statusLabel(s) {
+  return ({
+    idle: 'ждёт',
+    waiting_supervisor: 'ждёт вас',
+    running: 'говорят',
+    paused: 'пауза',
+    done: 'готово',
+    stopped: 'стоп',
+    error: 'ошибка',
+  })[s] || s;
+}
+
+function statusClass(s) {
+  if (s === 'waiting_supervisor' || s === 'paused') return 'wait';
+  if (s === 'running') return 'run';
+  if (s === 'error') return 'err';
+  return 'done';
+}
+
+function renderRun() {
+  const run = state.run;
+  if (!run) return;
+  const byId = Object.fromEntries(state.agents.map(a => [a.id, a]));
+  $('run-meta').innerHTML = `
+    <div><b>${esc(run.factory_name || 'Прогон')}</b></div>
+    <div class="hint">${esc(run.goal || '')}</div>
+    <div style="margin:8px 0">
+      <span class="status-badge ${statusClass(run.status)}">${statusLabel(run.status)}</span>
+      <span class="hint"> раунд ${run.round || 0}/${run.max_rounds}</span>
+    </div>`;
+  $('roster').innerHTML = (run.agent_ids || []).map(id => {
+    const a = byId[id] || {name: id, emoji: '🤖'};
+    const on = run.speaking === id ? ' on' : '';
+    return `<div class="agent-mini${on}"><span>${esc(a.emoji)}</span><div><b>${esc(a.name)}</b><div class="hint">${run.speaking===id?'сейчас говорит':'ждёт'}</div></div></div>`;
+  }).join('');
+
+  const log = $('console-log');
+  log.innerHTML = '';
+  (run.messages || []).forEach(m => appendBubble(log, m));
+  if (run.partial) {
+    appendBubble(log, {
+      name: 'Печатает…',
+      emoji: '…',
+      color: '#3ee0b0',
+      content: run.partial,
+      role: 'partial',
+    }, true);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+function appendBubble(root, m, streaming) {
+  const el = document.createElement('div');
+  el.className = 'msg' + (m.role === 'supervisor' || m.role === 'user' ? ' user' : '');
+  el.innerHTML = `
+    <div class="av" style="background:${esc(m.color || '#243049')}">${esc(m.emoji || '•')}</div>
+    <div>
+      <div class="who">${esc(m.name || m.role || '')}</div>
+      <div class="bubble${streaming ? ' cursor' : ''}">${esc(m.content || '')}</div>
+    </div>`;
+  root.appendChild(el);
+  return el;
+}
+
+function attachRun(id) {
+  if (state.es) { state.es.close(); state.es = null; }
+  state.run = {id, messages: [], status: 'idle'};
+  const es = new EventSource('/api/runs/' + id + '/events');
+  state.es = es;
+  es.onmessage = (ev) => {
+    const data = JSON.parse(ev.data);
+    if (data.kind === 'snapshot' || data.kind === 'status') {
+      state.run = data.payload;
+      renderRun();
+    } else if (data.kind === 'token') {
+      if (!state.run) return;
+      state.run.partial = data.payload.text;
+      state.run.speaking = data.payload.speaking;
+      renderRun();
+    } else if (data.kind === 'message') {
+      if (!state.run.messages) state.run.messages = [];
+      state.run.messages.push(data.payload);
+      state.run.partial = '';
+      renderRun();
+    } else if (data.kind === 'error') {
+      showBanner(data.payload.error, 'bad');
+    }
+  };
+}
+
+$('btn-next').onclick = () => state.run && api('/api/runs/' + state.run.id + '/approve', {method:'POST'});
+$('btn-pause').onclick = () => state.run && api('/api/runs/' + state.run.id + '/pause', {method:'POST'});
+$('btn-resume').onclick = () => state.run && api('/api/runs/' + state.run.id + '/resume', {method:'POST'});
+$('btn-stop').onclick = () => state.run && api('/api/runs/' + state.run.id + '/stop', {method:'POST'});
+$('btn-sum').onclick = () => state.run && api('/api/runs/' + state.run.id + '/summarize', {method:'POST'});
+
+$('inject-form').onsubmit = async (e) => {
+  e.preventDefault();
+  if (!state.run) return;
+  const text = $('inject-input').value.trim();
+  if (!text) return;
+  await api('/api/runs/' + state.run.id + '/inject', {method:'POST', body: JSON.stringify({text})});
+  $('inject-input').value = '';
+};
+
+$('chat-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('chat-input').value.trim();
+  if (!text) return;
+  $('chat-input').value = '';
+  state.chat.push({role:'user', content:text});
+  const log = $('chat-log');
+  appendBubble(log, {role:'user', name:'Вы', emoji:'🙂', color:'#5b8cff', content:text});
+  const box = appendBubble(log, {role:'assistant', name:'Модель', emoji:'🧠', content:''}, true);
+  const bubble = box.querySelector('.bubble');
+  let acc = '';
+  try {
+    const resp = await fetch('/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({messages: state.chat})
+    });
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream:true});
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) !== -1) {
+        const line = buf.slice(0, idx).replace(/^data: /, '');
+        buf = buf.slice(idx + 2);
+        if (!line) continue;
+        let j; try { j = JSON.parse(line); } catch { continue; }
+        if (j.error) acc += '\n[ошибка] ' + j.error;
+        if (j.delta) acc += j.delta;
+        bubble.textContent = acc;
+        log.scrollTop = log.scrollHeight;
+      }
+    }
+  } catch (err) {
+    acc = '[нет связи] ' + err;
+    bubble.textContent = acc;
+  }
+  bubble.classList.remove('cursor');
+  state.chat.push({role:'assistant', content:acc});
+};
+
+$('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('chat-form').requestSubmit(); }
+});
+
+$('btn-settings').onclick = () => $('modal-settings').classList.add('show');
+$('btn-detect').onclick = async () => {
+  const h = await api('/api/health');
+  $('detect-out').textContent = (h.backends || []).map(b =>
+    `${b.ok ? '✓' : '·'} ${b.name}  ${b.base_url}  ${b.ok ? (b.models||[]).join(', ') || 'сервер жив' : b.error}`
+  ).join('\n') + (h.demo ? '\n\nСейчас демо-режим.' : '\n\nВыбран: ' + (h.current && h.current.name));
+  await refreshHealth();
+};
+$('btn-save-set').onclick = async () => {
+  await api('/api/settings', {
+    method:'PUT',
+    body: JSON.stringify({
+      backend: $('set-backend').value,
+      base_url: $('set-url').value,
+      model: $('set-model').value,
+    })
+  });
+  await refreshHealth();
+  $('modal-settings').classList.remove('show');
+};
+
+(async function init() {
+  await refreshHealth();
+  await refreshLists();
+})();
+</script>
+</body>
+</html>
