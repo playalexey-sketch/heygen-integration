@@ -62,7 +62,7 @@ function statusBadge(s) {
 
 /* ===================== навигация ===================== */
 const loaders = {
-  overview: loadOverview, servers: loadServers, dbs: loadDbs,
+  ask: loadAsk, overview: loadOverview, servers: loadServers, dbs: loadDbs,
   domains: loadDomains, apps: loadApps, deploy: loadDeploy, ssh: loadSsh, settings: loadSettings,
 };
 
@@ -71,6 +71,114 @@ function showView(name) {
   $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === name));
   const l = loaders[name];
   if (l) l().catch(e => toast(e.message, 'err'));
+}
+
+/* ===================== умный помощник ===================== */
+let ASK_PLAN = null;
+
+async function loadAsk() {
+  try {
+    const info = await api('/api/ask/info');
+    const pill = $('#llm-pill'), txt = $('#llm-pill-text');
+    if (info.llm.available) {
+      pill.className = 'status-pill ok';
+      txt.textContent = `ИИ: ${info.llm.provider} · ${info.llm.model}`;
+    } else {
+      pill.className = 'status-pill';
+      txt.textContent = 'ИИ не настроен — работает встроенный анализатор';
+    }
+    const chips = $('#ask-examples');
+    chips.innerHTML = info.examples.map(e => `<button class="chip ask-ex" title="${esc(e)}">${esc(e.length > 60 ? e.slice(0, 57) + '…' : e)}</button>`).join('');
+    $$('.ask-ex').forEach(c => c.addEventListener('click', () => { $('#ask-text').value = c.title; }));
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function makePlan() {
+  const text = $('#ask-text').value.trim();
+  if (!text) { toast('Введите запрос', 'err'); return; }
+  const plan = await withBusy($('#btn-ask-plan'), () => api('/api/ask/plan', { method: 'POST', body: { text } }), 'План готов');
+  if (!plan) return;
+  ASK_PLAN = plan;
+  $('#ask-engine').textContent = `движок: ${plan.engine}${plan.warning ? ' · ' + plan.warning : ''}`;
+  $('#ask-summary').textContent = plan.summary || '';
+  renderPlan(plan);
+}
+
+function renderPlan(plan) {
+  const card = $('#ask-plan-card');
+  card.hidden = false;
+  $('#ask-plan-list').innerHTML = plan.steps.map((s, i) => `
+    <div class="plan-step">
+      <label class="plan-check">
+        <input type="checkbox" data-step="${i}" checked>
+        <span class="plan-num">${i + 1}</span>
+        <span class="plan-body">
+          <b>${esc(s.name || s.action)}</b>
+          <span class="muted small">${esc(s.action)}</span>
+          ${s.verify ? `<span class="badge blue">проверка: ${esc(s.verify.kind)}</span>` : ''}
+        </span>
+      </label>
+    </div>`).join('');
+  $('#ask-results-card').hidden = true;
+  $('#ask-report-card').hidden = true;
+}
+
+async function executePlan() {
+  if (!ASK_PLAN) return;
+  const checked = [...$$('#ask-plan-list input[data-step]')].filter(c => c.checked).map(c => ASK_PLAN.steps[+c.dataset.step]);
+  if (!checked.length) { toast('Выберите хотя бы один шаг', 'err'); return; }
+  const btn = $('#btn-ask-execute');
+  const res = await withBusy(btn, () => api('/api/ask/execute', {
+    method: 'POST',
+    body: { text: $('#ask-text').value.trim(), summary: ASK_PLAN.summary, steps: checked },
+  }), 'Выполнено');
+  if (!res) return;
+  renderAskResults(res);
+}
+
+function renderAskResults(res) {
+  const rc = $('#ask-results-card');
+  rc.hidden = false;
+  $('#ask-results').innerHTML = (res.checks || []).map((c, i) => `
+    <div class="plan-step">
+      <span class="plan-num ${c.ok ? 'ok' : 'bad'}">${c.ok ? '✓' : '✗'}</span>
+      <span class="plan-body">
+        <b>${esc(c.name)}</b>
+        <span class="muted small">${esc(c.detail || c.error || '')}</span>
+      </span>
+    </div>`).join('') || '<p class="muted">Проверки не выполнялись.</p>';
+
+  if (res.saved) {
+    const saved = $('#ask-results');
+    saved.insertAdjacentHTML('beforeend', '<h3 style="margin-top:14px">Доступы и результаты</h3>' +
+      Object.entries(res.saved).map(([k, v]) => {
+        if (!v || typeof v !== 'object') return '';
+        const parts = [];
+        for (const f of ['ip', 'host', 'port', 'user', 'password', 'database', 'container', 'connection']) {
+          if (v[f] !== undefined && v[f] !== null && v[f] !== '') {
+            parts.push(`<span class="mono">${esc(f)}=${esc(typeof v[f] === 'object' ? JSON.stringify(v[f]) : v[f])}</span>`);
+          }
+        }
+        return parts.length ? `<div class="muted small">${esc(k)}: ${parts.join(' · ')}</div>` : '';
+      }).join(''));
+  }
+
+  const rep = $('#ask-report-card');
+  rep.hidden = false;
+  $('#ask-report').textContent = res.report || 'Отчёт не сформирован';
+}
+
+function bindAsk() {
+  $('#btn-ask-plan').addEventListener('click', makePlan);
+  $('#btn-ask-execute').addEventListener('click', executePlan);
+  $('#btn-ask-plan-check-all').addEventListener('click', () => {
+    const boxes = $$('#ask-plan-list input[data-step]');
+    const all = boxes.every(b => b.checked);
+    boxes.forEach(b => { b.checked = !all; });
+  });
+  $('#ask-text').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) makePlan();
+  });
 }
 
 /* ===================== здоровье ===================== */
@@ -425,6 +533,7 @@ async function loadSettings() {
 /* ===================== старт ===================== */
 function init() {
   initHealth();
+  bindAsk();
   bindCreateServer();
   bindCreateDb();
   bindDnsAdd();
@@ -447,7 +556,7 @@ function init() {
   }));
 
   $$('.nav-item').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
-  showView('overview');
+  showView('ask');
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -35,7 +35,7 @@ from typing import Any, Optional
 
 import yaml
 
-from . import api, config, deploy
+from . import api, config, deploy, verify
 from .client import TimewebClient
 from .ssh import SSHClient, SSHError
 
@@ -88,7 +88,8 @@ def render(value: Any, ctx: dict) -> Any:
 # ---------------------------------------------------------------------- #
 #  SSH-клиент для шага деплоя
 # ---------------------------------------------------------------------- #
-def _ssh_for(params: dict, client: TimewebClient) -> SSHClient:
+def ssh_for(params: dict, client: TimewebClient) -> SSHClient:
+    """Строит SSHClient из параметров шага (server/host) или .env."""
     host = params.get("host") or config.SSH_HOST
     if not host and params.get("server"):
         server = api.resolve_server(client, str(params["server"]))
@@ -105,6 +106,10 @@ def _ssh_for(params: dict, client: TimewebClient) -> SSHClient:
         key_path=params.get("ssh_key_path") or config.SSH_KEY_PATH,
         key_passphrase=params.get("ssh_key_passphrase") or config.SSH_KEY_PASSPHRASE,
     )
+
+
+def _ssh_for(params: dict, client: TimewebClient) -> SSHClient:
+    return ssh_for(params, client)
 
 
 # ---------------------------------------------------------------------- #
@@ -459,6 +464,47 @@ def _deploy_mysql(client, ctx, p):
     return {"mysql": info, **info}
 
 
+@action("deploy.postgres")
+def _deploy_postgres(client, ctx, p):
+    ssh = _ssh_for(p, client)
+    with ssh:
+        info = deploy.deploy_postgres(
+            ssh,
+            db_name=str(p["name"]),
+            db_user=str(p.get("user", "app")),
+            db_password=p.get("password"),
+            port=int(p.get("port", 5432)),
+            volume_name=p.get("volume_name"),
+        )
+    return {"postgres": info, **info}
+
+
+@action("deploy.redis")
+def _deploy_redis(client, ctx, p):
+    ssh = _ssh_for(p, client)
+    with ssh:
+        info = deploy.deploy_redis(
+            ssh,
+            name=str(p.get("name", "redis")),
+            password=p.get("password"),
+            port=int(p.get("port", 6379)),
+            volume_name=p.get("volume_name"),
+        )
+    return {"redis": info, **info}
+
+
+@action("check")
+def _check(client, ctx, p):
+    """Универсальная проверка: {kind: http|dns|command|docker|postgres|mysql|redis|nginx, ...}"""
+    kind = str(p["kind"])
+    ssh = None
+    if kind not in {"http", "dns"}:
+        ssh = _ssh_for(p, client)
+    result = verify.run_check(kind, p, ssh=ssh)
+    print(f"[check] {kind}: {'✓' if result['ok'] else '✗'} {result['detail'][:120]}", flush=True)
+    return {"check": result, **result}
+
+
 # ---------------------------------------------------------------------- #
 #  Выполнение
 # ---------------------------------------------------------------------- #
@@ -471,6 +517,63 @@ def _when_true(value: Any) -> bool:
     return text not in {"", "false", "0", "no", "none", "null", "нет", "ложь"}
 
 
+def execute_step(
+    client: TimewebClient,
+    ctx: dict,
+    step: dict,
+    verbose: bool = False,
+) -> Any:
+    """Выполняет один шаг плана (с ретраями и сохранением результата).
+
+    ctx = {"vars": {...}, "saved": {...}}. Мутирует ctx["saved"].
+    """
+    if not isinstance(step, dict):
+        raise RunbookError(f"Шаг: ожидается объект, получено {type(step)}")
+    name = step.get("name") or step.get("action") or "шаг"
+    action_name = step.get("action")
+    if not action_name:
+        raise RunbookError(f"Шаг ({name}): не указано поле action")
+    if action_name not in ACTIONS:
+        raise RunbookError(
+            f"Шаг ({name}): неизвестное действие «{action_name}». "
+            f"Доступны: {', '.join(sorted(ACTIONS))}"
+        )
+    if step.get("when") is not None and not _when_true(render(step["when"], ctx)):
+        print(f"[skip] {name}", flush=True)
+        return None
+    params = render(step.get("with") or {}, ctx)
+    retries = int(step.get("retries", 0))
+    last_error: Optional[Exception] = None
+    result = None
+    for attempt in range(retries + 1):
+        try:
+            print(f"[run] {name} ({action_name})", flush=True)
+            result = ACTIONS[action_name](client, ctx, params)
+            save = step.get("save")
+            if save and isinstance(result, dict):
+                as_name = save.get("as")
+                field = save.get("field")
+                if as_name:
+                    value = result.get(field) if field else result
+                    ctx["saved"][as_name] = value
+                    if verbose:
+                        print(f"[save] {as_name} = {value}", flush=True)
+            last_error = None
+            break
+        except Exception as e:  # noqa: BLE001 — ретраи по желанию автора сценария
+            last_error = e
+            if attempt < retries:
+                delay = int(step.get("retry_delay", 15))
+                print(f"[warn] {name}: {e}; повтор через {delay} с (попытка {attempt + 2}/{retries + 1})", flush=True)
+                time.sleep(delay)
+    if last_error is not None and not step.get("ignore_errors"):
+        raise RunbookError(f"Шаг ({name}) не выполнен: {last_error}") from last_error
+    if last_error is not None:
+        print(f"[warn] {name}: ошибка проигнорирована: {last_error}", flush=True)
+        result = {"error": str(last_error), "ignored": True}
+    return result
+
+
 def execute(
     client: TimewebClient,
     steps: list,
@@ -479,48 +582,7 @@ def execute(
 ) -> dict:
     ctx: dict = {"vars": vars_ or {}, "saved": {}}
     for i, step in enumerate(steps, 1):
-        if not isinstance(step, dict):
-            raise RunbookError(f"Шаг {i}: ожидается объект, получено {type(step)}")
-        name = step.get("name") or step.get("action") or f"шаг {i}"
-        action_name = step.get("action")
-        if not action_name:
-            raise RunbookError(f"Шаг {i} ({name}): не указано поле action")
-        if action_name not in ACTIONS:
-            raise RunbookError(
-                f"Шаг {i} ({name}): неизвестное действие «{action_name}». "
-                f"Доступны: {', '.join(sorted(ACTIONS))}"
-            )
-        params = render(step.get("with") or {}, ctx)
-        if step.get("when") is not None and not _when_true(render(step["when"], ctx)):
-            print(f"[skip] {i}. {name}", flush=True)
-            continue
-        retries = int(step.get("retries", 0))
-        last_error: Optional[Exception] = None
-        for attempt in range(retries + 1):
-            try:
-                print(f"[run] {i}. {name} ({action_name})", flush=True)
-                result = ACTIONS[action_name](client, ctx, params)
-                save = step.get("save")
-                if save and isinstance(result, dict):
-                    as_name = save.get("as")
-                    field = save.get("field")
-                    if as_name:
-                        value = result.get(field) if field else result
-                        ctx["saved"][as_name] = value
-                        if verbose:
-                            print(f"[save] {as_name} = {value}", flush=True)
-                last_error = None
-                break
-            except Exception as e:  # noqa: BLE001 — ретраи на любых ошибках по желанию автора сценария
-                last_error = e
-                if attempt < retries:
-                    delay = int(step.get("retry_delay", 15))
-                    print(f"[warn] {name}: {e}; повтор через {delay} с (попытка {attempt + 2}/{retries + 1})", flush=True)
-                    time.sleep(delay)
-        if last_error is not None and not step.get("ignore_errors"):
-            raise RunbookError(f"Шаг {i} ({name}) не выполнен: {last_error}") from last_error
-        if last_error is not None:
-            print(f"[warn] {name}: ошибка проигнорирована: {last_error}", flush=True)
+        execute_step(client, ctx, step, verbose=verbose)
     return ctx["saved"]
 
 

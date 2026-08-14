@@ -40,6 +40,50 @@
 
 ---
 
+## 💬 Умный помощник (запросы на естественном языке)
+
+Агент понимает задачи, описанные обычными словами, сам разбивает их
+на шаги, выполняет, **проверяет результат** и пишет отчёт:
+
+> «Создай на сервере новый сайт для клиента Maria, PostgreSQL, Redis,
+> Nginx и HTTPS на домене maria.ru»
+
+Агент сам: найдёт/создаст сервер → пропишет A-запись домена →
+подготовит сервер → развернёт сайт (nginx + Let's Encrypt) →
+запустит PostgreSQL и Redis в docker → проверит каждое действие
+(HTTP 200, `SELECT 1`, `PING`) → пришлёт отчёт с доступами.
+
+**Где работает:**
+
+| Место | Как |
+|---|---|
+| Веб-панель | вкладка «💬 Помощник» → введите запрос → «Сформировать план» → отметьте шаги → «Выполнить» |
+| CLI | `python -m timeweb_agent ask "ваш запрос"` (после просмотра плана подтвердите; `--yes` — сразу выполнить, `--plan-only` — только план, `--json` — машинный вывод) |
+
+**Интеллектуальный движок** (по приоритету):
+
+1. **LLM** из настроек `.env` (см. шаблон): Timeweb Cloud AI
+   (`TW_AI_AGENT_ID` — агент из панели, оплата в рублях), OpenAI,
+   OpenRouter, локальный Ollama (`TW_AI_URL` + `TW_AI_TOKEN` + `TW_AI_MODEL`).
+2. **Встроенный анализатор правил** — работает сразу, без ключей:
+   понимает типовые запросы про сайты, серверы, базы данных
+   (MySQL/PostgreSQL/Redis — в docker на сервере или управляемые),
+   DNS-записи, HTTPS, деплой из git, диагностику конфигурации.
+
+Примеры запросов:
+
+```
+Создай управляемую базу данных PostgreSQL для проекта shop
+Разверни приложение из https://github.com/me/app.git на app.example.ru с HTTPS
+Добавь A-запись example.ru на IP 185.105.1.42
+Проверь конфигурацию сервера: nproc, free, df, fdisk
+```
+
+Безопасность: перед выполнением агент всегда показывает план;
+шаги можно снять. Выполняются только известные действия из реестра.
+
+---
+
 ## 🩺 Диагностика для поддержки Timeweb
 
 Поддержка часто просит прислать вывод `nproc`, `free -h`, `df -h`,
@@ -209,7 +253,9 @@ python -m timeweb_agent run timeweb_agent/examples/deploy-heygen.yaml --dry-run
 Действия плана: `servers.create/list/wait/reboot/stop/start/delete`,
 `db.create/add-admin/add-instance/delete`, `dns.add/delete`,
 `domains.check/add`, `apps.create/deploy`, `sshkeys.ensure`,
-`deploy.provision/website/docker/git/mysql`, `ssh.exec`, `sleep`, `echo`.
+`deploy.provision/website/docker/git/mysql/postgres/redis`,
+`check` (http/dns/command/docker/postgres/mysql/redis/nginx),
+`ssh.exec`, `sleep`, `echo`.
 
 Значения подставляются через `{{ vars.X }}`, `{{ имя_шага.поле }}`,
 `{{ env.NAME }}`. Результаты шагов сохраняются через `save:`.

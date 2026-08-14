@@ -133,12 +133,22 @@ def deploy_static_site(
     domain: str,
     ssl: bool = True,
     ssl_email: Optional[str] = None,
+    title: Optional[str] = None,
 ) -> None:
-    """Разворачивает статический сайт: nginx + (опционально) Let's Encrypt."""
+    """Разворачивает статический сайт: nginx + (опционально) Let's Encrypt.
+
+    Если в папке нет index.html — агент сам создаст красивую
+    страницу-заглушку (полезно для новых сайтов)."""
     domain = domain.lower().strip()
     local_dir = Path(local_dir)
-    if not local_dir.is_dir():
-        raise FileNotFoundError(f"Папка сайта не найдена: {local_dir}")
+    has_index = (
+        local_dir.is_dir()
+        and any(f.name in {"index.html", "index.htm"} for f in local_dir.iterdir() if f.is_file())
+    )
+    if not local_dir.is_dir() or not has_index:
+        local_dir = make_placeholder_site(
+            local_dir, title or domain, f"Домен {domain} · сайт готов к наполнению"
+        )
 
     ssh.exec("apt-get install -y nginx || true")
     ssh.exec(f"mkdir -p /var/www/{domain}")
@@ -286,4 +296,118 @@ def deploy_mysql(
         "database": db_name,
         "user": db_user,
         "password": db_password,
+        "container": f"mysql-{db_name}",
     }
+
+
+def deploy_postgres(
+    ssh: SSHClient,
+    db_name: str,
+    db_user: str,
+    db_password: str | None = None,
+    port: int = 5432,
+    volume_name: str | None = None,
+    tag: str = "16-alpine",
+) -> dict:
+    """Поднимает PostgreSQL в docker-контейнере с постоянным томом."""
+    db_password = db_password or secrets.token_urlsafe(16)
+    volume_name = volume_name or f"pgdata_{db_name}"
+    ensure_docker(ssh)
+    ssh.exec(f"docker rm -f pg-{db_name} || true", check=False)
+    ssh.exec(f"docker volume create {volume_name} || true")
+    ssh.exec(
+        "docker run -d --restart unless-stopped "
+        f"--name pg-{db_name} "
+        f"-p 127.0.0.1:{port}:5432 "
+        f"-e POSTGRES_DB={db_name} "
+        f"-e POSTGRES_USER={db_user} "
+        f"-e POSTGRES_PASSWORD={db_password} "
+        f"-v {volume_name}:/var/lib/postgresql/data "
+        f"postgres:{tag}"
+    )
+    print(f"[ok] PostgreSQL запущен: 127.0.0.1:{port}, база {db_name}, пользователь {db_user}", flush=True)
+    return {
+        "host": "127.0.0.1",
+        "port": port,
+        "database": db_name,
+        "user": db_user,
+        "password": db_password,
+        "container": f"pg-{db_name}",
+    }
+
+
+def deploy_redis(
+    ssh: SSHClient,
+    name: str = "redis",
+    password: str | None = None,
+    port: int = 6379,
+    volume_name: str | None = None,
+    tag: str = "7-alpine",
+) -> dict:
+    """Поднимает Redis в docker-контейнере с паролем и постоянным томом."""
+    password = password or secrets.token_urlsafe(16)
+    volume_name = volume_name or f"redis_data_{name}"
+    ensure_docker(ssh)
+    ssh.exec(f"docker rm -f redis-{name} || true", check=False)
+    ssh.exec(f"docker volume create {volume_name} || true")
+    ssh.exec(
+        "docker run -d --restart unless-stopped "
+        f"--name redis-{name} "
+        f"-p 127.0.0.1:{port}:6379 "
+        f"-v {volume_name}:/data "
+        f"redis:{tag} redis-server --requirepass {password}"
+    )
+    print(f"[ok] Redis запущен: 127.0.0.1:{port}, контейнер redis-{name}", flush=True)
+    return {
+        "host": "127.0.0.1",
+        "port": port,
+        "password": password,
+        "container": f"redis-{name}",
+    }
+
+
+PLACEHOLDER_HTML = """<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<style>
+  body {{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+         background:radial-gradient(800px 500px at 80% -10%, rgba(79,124,255,.25), transparent 60%),
+                    radial-gradient(700px 400px at 0% 110%, rgba(124,92,255,.2), transparent 60%), #0b0f1a;
+         color:#e8ecf6; }}
+  .box {{ text-align:center; padding:40px; }}
+  h1 {{ font-size:44px; margin:0 0 12px; }}
+  p {{ color:#8b93a7; font-size:18px; }}
+  .badge {{ display:inline-block; margin-top:24px; padding:8px 18px; border-radius:999px;
+           background:rgba(46,204,143,.12); color:#2ecc8f; border:1px solid rgba(46,204,143,.4);
+           font-size:14px; }}
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>{title}</h1>
+    <p>{subtitle}</p>
+    <div class="badge">✅ Сайт развёрнут агентом Timeweb · HTTPS включён</div>
+  </div>
+</body>
+</html>
+"""
+
+
+def make_placeholder_site(target_dir: Path, title: str, subtitle: str = "") -> Path:
+    """Создаёт папку с index.html-заглушкой (если сайта ещё нет)."""
+    target_dir = Path(target_dir)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    index = target_dir / "index.html"
+    if not index.exists():
+        index.write_text(
+            PLACEHOLDER_HTML.format(
+                title=title or "Новый сайт",
+                subtitle=subtitle or "Скоро здесь появится контент. Сайт готов к наполнению.",
+            ),
+            encoding="utf-8",
+        )
+    return target_dir

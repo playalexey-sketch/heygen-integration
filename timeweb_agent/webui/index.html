@@ -17,7 +17,8 @@
 
   <div class="layout">
     <nav class="sidebar">
-      <button class="nav-item active" data-view="overview">🏠 <span>Обзор</span></button>
+      <button class="nav-item active" data-view="ask">💬 <span>Помощник</span></button>
+      <button class="nav-item" data-view="overview">🏠 <span>Обзор</span></button>
       <button class="nav-item" data-view="servers">🖥️ <span>Серверы</span></button>
       <button class="nav-item" data-view="dbs">🗄️ <span>Базы данных</span></button>
       <button class="nav-item" data-view="domains">🌐 <span>Домены и DNS</span></button>
@@ -28,8 +29,47 @@
     </nav>
 
     <main class="content">
+      <!-- ПОМОЩНИК -->
+      <section id="view-ask" class="view active">
+        <div class="page-head">
+          <h2>💬 Умный помощник</h2>
+          <span class="status-pill" id="llm-pill"><span class="dot"></span><span id="llm-pill-text">…</span></span>
+        </div>
+        <div class="card highlight">
+          <h3>Что нужно сделать?</h3>
+          <p class="muted">Опишите задачу обычными словами — агент сам составит план, выполнит его и проверит результат.</p>
+          <textarea id="ask-text" rows="3" placeholder="Например: Создай на сервере новый сайт для клиента Maria, PostgreSQL, Redis, Nginx и HTTPS на домене maria.ru"></textarea>
+          <div class="chips" id="ask-examples"></div>
+          <div class="ask-actions">
+            <button class="btn primary" id="btn-ask-plan">🧠 Сформировать план</button>
+            <span class="muted small" id="ask-engine"></span>
+          </div>
+        </div>
+
+        <div class="card" id="ask-plan-card" hidden>
+          <div class="page-head"><h3>📋 План действий</h3>
+            <div class="ask-actions">
+              <button class="btn ghost" id="btn-ask-plan-check-all">Отметить все</button>
+              <button class="btn primary" id="btn-ask-execute">▶ Выполнить</button>
+            </div>
+          </div>
+          <p class="muted" id="ask-summary"></p>
+          <div id="ask-plan-list"></div>
+        </div>
+
+        <div class="card" id="ask-results-card" hidden>
+          <h3>Результаты и проверки</h3>
+          <div id="ask-results"></div>
+        </div>
+
+        <div class="card" id="ask-report-card" hidden>
+          <h3>📄 Отчёт</h3>
+          <pre class="out" id="ask-report"></pre>
+        </div>
+      </section>
+
       <!-- ОБЗОР -->
-      <section id="view-overview" class="view active">
+      <section id="view-overview" class="view">
         <div class="page-head">
           <h2>Обзор аккаунта</h2>
           <button class="btn ghost" id="btn-overview-refresh">↻ Обновить</button>

@@ -476,6 +476,11 @@ heygen-integration/
 
 - 🖥️ запуск с диска двойным кликом: `run_twagent_web.bat` (Windows) /
   `./run_twagent_web.sh` (Linux/Mac) — откроется веб-интерфейс
+- 💬 умный помощник: «Создай на сервере сайт для клиента Maria,
+  PostgreSQL, Redis, Nginx и HTTPS на домене maria.ru» → сам составит
+  план, выполнит, проверит и отчитается
+  (`python -m timeweb_agent ask "..."`, LLM — Timeweb Cloud AI / OpenAI
+  / любой совместимый, а без ключей работает встроенный анализатор)
 - 🔑 шаблон настроек с комментариями: [`timeweb_agent/.env.example`](timeweb_agent/.env.example)
 - 📖 документация: [`timeweb_agent/README.md`](timeweb_agent/README.md)
 - 📋 примеры планов: [`timeweb_agent/examples/`](timeweb_agent/examples/)

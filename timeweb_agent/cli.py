@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
-from . import api, config, deploy, runbook
+from . import api, brain, config, deploy, runbook
 from .client import TimewebClient, TimewebError
 from .ssh import SSHClient
 
@@ -30,10 +30,14 @@ def redact(obj: Any, show_secrets: bool = False) -> Any:
     if show_secrets:
         return obj
     if isinstance(obj, dict):
-        return {
-            k: ("***" if any(h in str(k).lower() for h in SECRET_HINTS) else redact(v))
-            for k, v in obj.items()
-        }
+        out = {}
+        for k, v in obj.items():
+            if any(h in str(k).lower() for h in SECRET_HINTS):
+                # шаблоны подстановки {{ ... }} — не секреты
+                out[k] = v if isinstance(v, str) and "{{" in v else "***"
+            else:
+                out[k] = redact(v)
+        return out
     if isinstance(obj, list):
         return [redact(v) for v in obj]
     return obj
@@ -561,6 +565,48 @@ def cmd_diag(args: argparse.Namespace) -> None:
         print()
 
 
+# ---------------------------------------------------------------------- #
+#  Интеллектуальный помощник: запрос на естественном языке
+# ---------------------------------------------------------------------- #
+def cmd_ask(args: argparse.Namespace) -> None:
+    client = make_client(args)
+    text = args.text
+    use_json = bool(getattr(args, "json", False)) or config.JSON_OUTPUT
+    auto_yes = bool(getattr(args, "yes", False)) or config.AUTO_YES
+
+    if args.plan_only:
+        p = brain.plan(text, client, force_llm=args.llm)
+        emit(p, args)
+        return
+
+    if auto_yes:
+        # печатаем план сами, выполняем без интерактивного вопроса
+        p = brain.plan(text, client, force_llm=args.llm)
+        if not use_json:
+            print(f"План ({p['engine']}): {p.get('summary', '')}", flush=True)
+            for i, s in enumerate(p["steps"], 1):
+                print(f"  {i}. {s.get('name') or s.get('action')}  [{s.get('action')}]", flush=True)
+        result = brain.run_request(
+            text, client, confirm=False, force_llm=args.llm,
+            verbose=args.verbose, preapproved_plan=p,
+        )
+    else:
+        result = brain.run_request(
+            text, client, confirm=True, force_llm=args.llm, verbose=args.verbose,
+        )
+
+    if use_json:
+        print_json(result, show_secrets=getattr(args, "show_secrets", False))
+        return
+
+    print("\n" + "=" * 64, flush=True)
+    print("ОТЧЁТ", flush=True)
+    print("=" * 64, flush=True)
+    print(result["report"], flush=True)
+    if result.get("failed"):
+        print("(часть проверок не пройдена — см. выше)", flush=True)
+    print("=" * 64, flush=True)
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -778,6 +824,18 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("diag", help="диагностика сервера для поддержки (nproc, free -h, df -h, fdisk -l)")
     add_ssh_args(p)
     p.set_defaults(func=cmd_diag)
+
+    # ask — интеллектуальный помощник
+    p = sub.add_parser(
+        "ask",
+        help="выполнить запрос на естественном языке: «Создай на сервере сайт для клиента Maria, PostgreSQL, Redis, Nginx и HTTPS на домене maria.ru»",
+    )
+    add_common(p)
+    p.add_argument("text", help="запрос на русском языке")
+    p.add_argument("--llm", choices=["auto", "none", "timeweb", "openai", "custom"], default="auto",
+                   help="движок планирования (по умолчанию auto: LLM из .env, иначе анализатор правил)")
+    p.add_argument("--plan-only", action="store_true", help="только составить план, не выполнять")
+    p.set_defaults(func=cmd_ask)
 
     # run
     p = sub.add_parser("run", help="выполнить план (runbook) из YAML-файла")

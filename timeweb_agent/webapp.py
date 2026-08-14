@@ -16,7 +16,7 @@ from typing import Any
 
 from flask import Flask, jsonify, request, send_from_directory
 
-from . import __version__, api, config, deploy
+from . import __version__, api, brain, config, deploy
 from .client import TimewebClient
 from .ssh import SSHClient
 
@@ -439,6 +439,70 @@ def diag():
         with ssh:
             results = deploy.run_support_diagnostics(ssh)
         return {"demo": False, "target": target, "results": results}
+
+    return wrap(run)
+
+
+# ---------------------------------------------------------------------- #
+#  Интеллектуальный помощник (естественный язык → план → проверка → отчёт)
+# ---------------------------------------------------------------------- #
+@app.get("/api/ask/info")
+def ask_info():
+    llm = brain.get_llm()
+    return ok(
+        {
+            "llm": (
+                {
+                    "available": True,
+                    "provider": llm.provider,
+                    "model": llm.model,
+                }
+                if llm
+                else {"available": False}
+            ),
+            "actions": list(brain.ACTIONS_SPEC.keys()),
+            "examples": [
+                "Создай на сервере новый сайт для клиента Maria, PostgreSQL, Redis, Nginx и HTTPS на домене maria.ru",
+                "Создай управляемую базу данных PostgreSQL для проекта shop",
+                "Разверни приложение из https://github.com/me/app.git на app.example.ru с HTTPS",
+                "Добавь A-запись example.ru на IP 185.105.1.42",
+                "Покажи список серверов",
+                "Проверь конфигурацию сервера: nproc, free, df, fdisk",
+            ],
+        }
+    )
+
+
+@app.post("/api/ask/plan")
+def ask_plan():
+    payload = request.get_json(silent=True) or {}
+    text = str(payload.get("text") or "").strip()
+    if not text:
+        return fail("Введите запрос")
+
+    def run():
+        return brain.plan(text, make_client(), force_llm=payload.get("llm"))
+
+    return wrap(run)
+
+
+@app.post("/api/ask/execute")
+def ask_execute():
+    payload = request.get_json(silent=True) or {}
+    steps = payload.get("steps")
+    text = str(payload.get("text") or "").strip()
+    if not isinstance(steps, list) or not steps:
+        return fail("План пуст")
+
+    def run():
+        result = brain.run_request(
+            text or "запрос из веб-панели",
+            make_client(),
+            confirm=False,
+            preapproved_plan={"summary": payload.get("summary") or "", "steps": steps},
+        )
+        # в веб-панели показываем доступы открыто (это личная панель пользователя)
+        return result
 
     return wrap(run)
 

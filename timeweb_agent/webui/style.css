@@ -194,3 +194,26 @@ code { background: rgba(79, 124, 255, 0.12); padding: 2px 7px; border-radius: 6p
 a { color: var(--accent); }
 #env-files { padding-left: 18px; }
 #env-files li { margin-bottom: 4px; }
+
+/* ===== помощник ===== */
+#ask-text {
+  width: 100%; resize: vertical; min-height: 74px; margin: 10px 0 14px;
+  background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+  border-radius: 10px; padding: 12px 14px; font: inherit; font-size: 14px;
+}
+#ask-text:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.18); outline: none; }
+.ask-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+.plan-step {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 8px; background: var(--bg2);
+}
+.plan-check { display: flex; flex-direction: row; align-items: flex-start; gap: 12px; width: 100%; color: var(--text); font-size: 13.5px; cursor: pointer; }
+.plan-num {
+  flex: 0 0 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(79, 124, 255, 0.16); color: #bcd0ff; font-weight: 700; font-size: 13px;
+}
+.plan-num.ok { background: rgba(46, 204, 143, 0.16); color: var(--green); }
+.plan-num.bad { background: rgba(255, 93, 108, 0.16); color: var(--red); }
+.plan-body { display: flex; flex-direction: column; gap: 3px; }
+
