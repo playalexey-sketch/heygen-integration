@@ -55,3 +55,7 @@ LTX-2/
 # WebUI work/uploads
 ltx2_work/
 ltx2_output/
+
+# Аватар-Студия
+studio_work/
+studio_output/
