@@ -311,10 +311,96 @@ def main() -> int:
     check("видео с созданным персонажем готово", j.get("status") == "done",
           str(j.get("error"))[:120])
 
+    # ── 10б. агент: разбор свободного описания ───────────────
+    print("\n10б. Агент: разбор свободного описания")
+    rr = requests.post(f"{BASE}/api/analyse", json={"text": "к"}, timeout=20)
+    check("ловит слишком короткое описание", rr.status_code == 400)
+
+    brief = ("Хочу вертикальный ролик для Reels секунд на 20. Настроение спокойное, "
+             "доверительное, тон эксперта. Нужны субтитры прямо в кадре, тёмный фон. "
+             "Текст: «Ты замечал, что в твоём Роду всё повторяется по кругу?»")
+    d = requests.post(f"{BASE}/api/analyse", json={"text": brief}, timeout=20).json()
+    pa = d.get("params", {})
+    check("описание разобрано", bool(pa))
+    check("определил вертикальный формат", pa.get("aspect_ratio") == "9:16")
+    check("определил субтитры в кадре", pa.get("caption_style") == "default")
+    check("определил тёмный фон", pa.get("background_color") == "#0B0B0F")
+    check("определил спокойную подачу", pa.get("expressiveness") == "low")
+    check("замедлил речь под спокойный тон", pa.get("voice_speed", 1) < 1.0)
+    check("извлёк текст из кавычек", "повторяется по кругу" in (pa.get("script") or ""))
+    check("собрал поведение в кадре", bool(pa.get("motion_prompt")))
+    check("подсказал объём текста под 20 секунд",
+          any("20 сек" in q or "секунд" in q for q in d.get("questions", [])))
+    check("НЕ подбирает голос", "voice_id_input" not in pa and "voice_mode" not in pa)
+    check("НЕ подбирает фото", "photos" not in pa and "avatar_mode" not in pa)
+    cards = d.get("cards", [])
+    check("карточка согласования сформирована", len(cards) > 8)
+    check("у каждого параметра есть русская подпись",
+          all(c.get("label") and any(ord(ch) > 1000 for ch in c["label"]) for c in cards))
+    check("у решений есть объяснение", sum(1 for c in cards if c.get("why")) > 8)
+
+    d2 = requests.post(f"{BASE}/api/analyse", json={
+        "text": "横 ролик для YouTube в 4K, энергично и ярко, с жестами, "
+                "прозрачный фон для монтажа, на английском"}, timeout=20).json()
+    p2 = d2.get("params", {})
+    check("распознал YouTube → 16:9", p2.get("aspect_ratio") == "16:9")
+    check("распознал 4K", p2.get("resolution") == "4k")
+    check("распознал прозрачный фон → webm", p2.get("output_format") == "webm")
+    check("прозрачность включила удаление фона", p2.get("background_type") == "remove")
+    check("распознал энергичную подачу", p2.get("expressiveness") == "high")
+    check("ускорил речь", p2.get("voice_speed", 1) > 1.0)
+    check("распознал английский язык", p2.get("voice_locale") == "en-US")
+
+    # применяем подобранное к реальной генерации
+    print("\n10в. Генерация по утверждённым параметрам агента")
+    gen = {"avatar_mode": "existing", "avatar_id": avatar_id,
+           "voice_mode": "library", "voice_id_input": voice_id}
+    for k in ("aspect_ratio", "resolution", "output_format", "engine",
+              "expressiveness", "motion_prompt", "background_type",
+              "background_color", "caption_format", "caption_style",
+              "voice_speed", "voice_pitch", "voice_emotion", "voice_locale",
+              "script", "title"):
+        if pa.get(k) not in (None, ""):
+            gen[k] = str(pa[k])
+    rr = requests.post(f"{BASE}/api/generate", data=gen, timeout=30)
+    check("задача по параметрам агента принята", rr.status_code == 200, rr.text[:120])
+    j = wait_job(rr.json()["job_id"], 120)
+    check("видео по описанию словами готово", j.get("status") == "done",
+          str(j.get("error"))[:120])
+    if j.get("status") == "done":
+        pl = j.get("request_payload", {})
+        check("формат агента применён", pl.get("aspect_ratio") == "9:16")
+        check("субтитры агента применены",
+              pl.get("caption", {}).get("style") == "default")
+        check("фон агента применён",
+              pl.get("background", {}).get("value") == "#0B0B0F")
+
+    # ── 10г. устойчивость сохранения файла ───────────────────
+    print("\n10г. Устойчивость сохранения (баг с отсутствующей папкой)")
+    from app.server import OUT as OUTDIR
+    import shutil as _sh
+    if OUTDIR.is_dir():
+        _sh.rmtree(OUTDIR)          # имитируем удалённую папку videos
+    check("папка videos удалена для проверки", not OUTDIR.is_dir())
+    h0 = requests.get(f"{BASE}/api/history", timeout=20)
+    check("архив не падает без папки", h0.status_code == 200)
+    rr = requests.post(f"{BASE}/api/generate", data={
+        "avatar_mode": "existing", "avatar_id": avatar_id,
+        "voice_mode": "library", "voice_id_input": voice_id,
+        "script": "Проверка сохранения при удалённой папке."}, timeout=30)
+    j = wait_job(rr.json()["job_id"], 120)
+    check("видео сохраняется даже без папки", j.get("status") == "done",
+          str(j.get("error"))[:140])
+    if j.get("status") == "done":
+        dr = requests.get(BASE + j["download"], timeout=60)
+        check("файл доступен по ссылке", dr.status_code == 200 and len(dr.content) > 1000)
+
     # ── 11. история ──────────────────────────────────────────
     print("\n11. Архив готовых видео")
     h = requests.get(f"{BASE}/api/history", timeout=20).json()
-    check("список готовых видео не пуст", len(h.get("items", [])) >= 4)
+    # папка videos удалялась в п.10г, поэтому считаем видео, снятые после этого
+    check("список готовых видео не пуст", len(h.get("items", [])) >= 1,
+          str(h)[:120])
 
     # ── 12. поведение без ключа ──────────────────────────────
     print("\n12. Поведение без ключа")

@@ -25,6 +25,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from .heygen import HeyGen, HeyGenError
 from . import options as OPT
+from . import brief as BRIEF
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 WORK = BASE_DIR / "work"
@@ -134,6 +135,54 @@ async def get_options():
         "voice_locales": OPT.VOICE_LOCALES,
         "voice_ranges": OPT.VOICE_RANGES,
     }
+
+
+@app.post("/api/analyse")
+async def analyse_brief(request: Request):
+    """Разбирает свободное описание задачи и подбирает параметры.
+
+    Голос и фото не трогает — их выбирает человек.
+    Возвращает карточку на согласование: значение + причина выбора.
+    """
+    body = await request.json()
+    text = (body.get("text") or "").strip()
+    if len(text) < 10:
+        return JSONResponse(
+            {"error": "Опишите задачу подробнее — хотя бы одним предложением."},
+            status_code=400)
+
+    res = BRIEF.analyse(text)
+    params, explain = res["params"], res["explain"]
+
+    # человекочитаемые подписи значений — из того же справочника, что и форма
+    lookup = {
+        "aspect_ratio": dict(OPT.ASPECT_RATIOS),
+        "resolution": dict(OPT.RESOLUTIONS),
+        "output_format": dict(OPT.OUTPUT_FORMATS),
+        "engine": {k: v for k, v, *_ in OPT.ENGINES},
+        "expressiveness": dict(OPT.EXPRESSIVENESS),
+        "background_type": dict(OPT.BACKGROUND_TYPES),
+        "caption_format": dict(OPT.CAPTION_FORMATS),
+        "caption_style": dict(OPT.CAPTION_STYLES),
+        "voice_emotion": dict(OPT.VOICE_EMOTIONS),
+        "voice_locale": dict(OPT.VOICE_LOCALES),
+    }
+
+    cards = []
+    for key, value in params.items():
+        pretty = lookup.get(key, {}).get(value, str(value))
+        if key in ("voice_speed", "voice_pitch"):
+            pretty = str(value)
+        cards.append({
+            "key": key,
+            "label": BRIEF.LABELS.get(key, key),
+            "value": value,
+            "pretty": pretty or "—",
+            "why": explain.get(key, ""),
+        })
+
+    return {"params": params, "cards": cards, "questions": res["questions"],
+            "script_found": res["script_found"]}
 
 
 @app.get("/api/settings")
@@ -436,20 +485,28 @@ def _run_video(jid: str, p: dict):
 
         # ── 5. Скачивание ────────────────────────────────────
         jset(jid, progress=97, stage="Скачиваю готовый файл")
+        OUT.mkdir(parents=True, exist_ok=True)   # папка могла быть удалена
         ext = "webm" if p["output_format"] == "webm" else "mp4"
         fname = f"{jid[:8]}_video.{ext}"
         fpath = OUT / fname
         r = requests.get(info["video_url"], timeout=900, stream=True)
         r.raise_for_status()
-        with fpath.open("wb") as f:
+        tmp_path = fpath.with_suffix(fpath.suffix + ".part")
+        with tmp_path.open("wb") as f:
             for chunk in r.iter_content(1 << 20):
-                f.write(chunk)
+                if chunk:
+                    f.write(chunk)
+        tmp_path.replace(fpath)                  # атомарно: файл появляется целиком
+
+        if not fpath.is_file() or fpath.stat().st_size == 0:
+            raise HeyGenError("Файл видео не сохранился. Проверьте свободное место "
+                              "на диске и права на запись в папку videos.")
 
         sub_name = None
         if info.get("subtitle_url"):
             try:
                 sr = requests.get(info["subtitle_url"], timeout=120)
-                if sr.ok:
+                if sr.ok and sr.content:
                     sub_name = f"{jid[:8]}_subtitles.{p.get('caption_format') or 'srt'}"
                     (OUT / sub_name).write_bytes(sr.content)
             except Exception:
@@ -619,6 +676,8 @@ async def get_file(name: str):
 @app.get("/api/history")
 async def history():
     items = []
+    if not OUT.is_dir():
+        return {"items": []}
     for f in sorted(OUT.glob("*.*"), key=lambda x: x.stat().st_mtime, reverse=True):
         if f.suffix in (".mp4", ".webm"):
             items.append({"name": f.name, "url": f"/api/file/{f.name}",

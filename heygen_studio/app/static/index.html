@@ -92,6 +92,13 @@ summary{cursor:pointer;color:var(--goldbr);font-size:13.5px;padding:7px 0}
 .chk{display:flex;align-items:center;gap:9px;margin:11px 0}
 .chk input{width:17px;height:17px;accent-color:var(--gold)}
 .chk label{margin:0}
+.pc{display:flex;gap:11px;align-items:flex-start;padding:10px 12px;background:var(--card2);
+ border:1px solid var(--line);border-radius:9px;margin-bottom:7px}
+.pc .k{flex:0 0 190px;font-size:13px;color:var(--grey)}
+.pc .val{flex:1;min-width:0}
+.pc .val b{color:var(--goldbr);font-weight:600;font-size:13.5px}
+.pc .why{display:block;color:var(--grey);font-size:11.5px;margin-top:3px;line-height:1.45}
+@media(max-width:640px){.pc{flex-direction:column;gap:3px}.pc .k{flex:none}}
 </style>
 </head>
 <body>
@@ -128,6 +135,42 @@ summary{cursor:pointer;color:var(--goldbr);font-size:13.5px;padding:7px 0}
       <button type="button" class="btn" id="check">Проверить связь</button>
     </div>
     <div id="check-res"></div>
+  </div>
+</div>
+
+<!-- РЕЖИМ РАБОТЫ -->
+<div class="card" style="border-color:rgba(214,175,106,.4)">
+  <h2 class="open" data-t="cmode"><span class="num">✨</span> Как будем настраивать<span class="ar">▾</span></h2>
+  <div class="body" id="cmode">
+    <div class="tabs" id="mode-tabs">
+      <div class="tab on" data-mode="brief">💬 Опишу словами — агент подберёт</div>
+      <div class="tab" data-mode="manual">🎛 Настрою всё сам</div>
+    </div>
+
+    <div id="pane-brief" style="margin-top:15px">
+      <label><b>Опишите свободно, что хотите получить</b></label>
+      <textarea id="brief" style="min-height:120px"
+        placeholder="Например: Хочу вертикальный ролик для Reels секунд на 20. Настроение спокойное, доверительное, тон эксперта. Нужны субтитры прямо в кадре, тёмный фон. Текст: «Ты замечал, что в твоём Роду всё повторяется по кругу? Одни и те же сценарии, одни и те же долги.»"></textarea>
+      <div class="hint">Агент подберёт формат, качество, движок, мимику, поведение в кадре,
+        фон, субтитры и настройки речи. <b>Голос и фото вы выбираете сами</b> — в блоках 1 и 2.</div>
+      <button type="button" class="btn" id="do-analyse"
+        style="margin-top:10px;border-color:var(--gold);color:var(--goldbr)">Разобрать описание</button>
+
+      <div id="agent-out" class="hidden" style="margin-top:16px">
+        <div class="msg warn" id="agent-q"></div>
+        <div style="font-size:13.5px;color:var(--grey);margin:12px 0 8px">
+          Агент подобрал параметры. Проверьте и утвердите:</div>
+        <div id="cards"></div>
+        <div style="display:flex;gap:9px;margin-top:14px;flex-wrap:wrap">
+          <button type="button" class="btn" id="approve"
+            style="background:var(--gold);color:#14140f;border-color:var(--gold);font-weight:700">
+            ✓ Утвердить и применить</button>
+          <button type="button" class="btn" id="reanalyse">Разобрать заново</button>
+          <button type="button" class="btn" id="to-manual">Открыть все настройки</button>
+        </div>
+        <div id="approved" class="msg ok hidden" style="margin-top:12px"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -425,6 +468,88 @@ $$('[data-t]').forEach(h=>h.onclick=()=>{
   const b=$('#'+h.dataset.t);
   b.classList.toggle('hidden'); h.classList.toggle('open');
 });
+
+// ── режим: описание словами / ручные настройки ──────────────
+// Блоки 1 (фото) и 2 (голос) видны всегда — их агент не трогает.
+const AGENT_BLOCKS=['c3','c4','c5','c6','c7','c8'];
+let agentParams=null, approved=false;
+
+function setMode(m){
+  $$('[data-mode]').forEach(x=>x.classList.toggle('on',x.dataset.mode===m));
+  $('#pane-brief').classList.toggle('hidden',m!=='brief');
+  AGENT_BLOCKS.forEach(id=>{
+    const card=$('#'+id).closest('.card');
+    // в режиме описания прячем блоки, которые заполнит агент
+    card.style.display=(m==='brief'&&!approved)?'none':'';
+  });
+}
+$$('[data-mode]').forEach(t=>t.onclick=()=>setMode(t.dataset.mode));
+
+$('#do-analyse').onclick=async()=>{
+  const text=$('#brief').value.trim();
+  if(text.length<10) return showErr('Опишите задачу подробнее — хотя бы одним предложением.');
+  $('#do-analyse').textContent='Разбираю…'; $('#do-analyse').disabled=true;
+  let d;
+  try{
+    d=await (await fetch('/api/analyse',{method:'POST',
+      headers:{'content-type':'application/json'},body:JSON.stringify({text})})).json();
+  }catch(e){ d={error:'Не удалось разобрать описание.'}; }
+  $('#do-analyse').textContent='Разобрать описание'; $('#do-analyse').disabled=false;
+  if(d.error) return showErr(d.error);
+
+  agentParams=d.params; approved=false;
+  $('#approved').classList.add('hidden');
+  $('#cards').innerHTML=d.cards.map(c=>`
+    <div class="pc"><div class="k">${c.label}</div>
+      <div class="val"><b>${c.pretty}</b>
+        ${c.why?`<span class="why">${c.why}</span>`:''}</div></div>`).join('');
+  const qs=d.questions||[];
+  $('#agent-q').innerHTML = qs.length
+    ? '⚠️ '+qs.join('<br>⚠️ ')
+    : '✓ Всё понятно из описания, уточнений нет.';
+  $('#agent-q').className = qs.length?'msg warn':'msg ok';
+  $('#agent-out').classList.remove('hidden');
+  $('#agent-out').scrollIntoView({behavior:'smooth',block:'nearest'});
+};
+$('#reanalyse').onclick=()=>$('#do-analyse').click();
+
+// применяем подобранные параметры в поля формы
+$('#approve').onclick=()=>{
+  if(!agentParams) return;
+  const set=(sel,v)=>{const el=$(sel); if(el!==null&&v!==undefined&&v!==null) el.value=v;};
+  set('#aspect_ratio',agentParams.aspect_ratio);
+  set('#resolution',agentParams.resolution);
+  set('#output_format',agentParams.output_format);
+  set('#engine',agentParams.engine);
+  set('#expressiveness',agentParams.expressiveness);
+  set('#caption_format',agentParams.caption_format);
+  set('#caption_style',agentParams.caption_style);
+  set('#background_type',agentParams.background_type);
+  set('#emotion',agentParams.voice_emotion);
+  set('#locale',agentParams.voice_locale);
+  if(agentParams.voice_speed!==undefined){
+    $('#speed').value=agentParams.voice_speed; $('#speed').dispatchEvent(new Event('input'));}
+  if(agentParams.voice_pitch!==undefined){
+    $('#pitch').value=agentParams.voice_pitch; $('#pitch').dispatchEvent(new Event('input'));}
+  const mp=document.querySelector('[name=motion_prompt]');
+  if(mp&&agentParams.motion_prompt) mp.value=agentParams.motion_prompt;
+  const ti=document.querySelector('[name=title]');
+  if(ti&&agentParams.title) ti.value=agentParams.title;
+  const bc=document.querySelector('[name=background_color]');
+  if(bc&&agentParams.background_color) bc.value=agentParams.background_color;
+  if(agentParams.script){ $('#script').value=agentParams.script;
+    $('#script').dispatchEvent(new Event('input')); }
+  $('#engine').onchange(); $('#background_type').onchange();
+
+  approved=true;
+  AGENT_BLOCKS.forEach(id=>{$('#'+id).closest('.card').style.display='';});
+  $('#approved').innerHTML='✓ Параметры применены к форме. '
+    +'Осталось выбрать <b>фото</b> (блок 1) и <b>голос</b> (блок 2) — '
+    +'их агент не подбирает. Затем нажмите «Создать видео».';
+  $('#approved').classList.remove('hidden');
+  $('#approved').scrollIntoView({behavior:'smooth',block:'nearest'});
+};
+$('#to-manual').onclick=()=>{approved=true;setMode('manual');};
 
 function fill(sel, pairs, def){
   const el=$(sel); if(!el) return;
@@ -740,6 +865,7 @@ async function loadHist(){
 }
 $('#load-hist').onclick=loadHist;
 loadHist();
+setMode('brief');   // по умолчанию — режим свободного описания
 </script>
 </body>
 </html>
