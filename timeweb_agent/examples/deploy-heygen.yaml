@@ -1,0 +1,54 @@
+# План: развернуть это приложение (HeyGen Integration) на VPS + база MySQL.
+# Запуск:  python -m timeweb_agent run timeweb_agent/examples/deploy-heygen.yaml --yes
+#
+# Требования:
+#   - токен Timeweb (TIMEWEB_CLOUD_TOKEN в .env)
+#   - SSH-доступ (TW_SSH_HOST + пароль/ключ в .env) — если сервер уже есть,
+#     либо этот план сам создаст сервер и пропишет A-запись домена
+#   - домен, делегированный на ns1/ns2.timeweb.ru
+
+name: Развернуть HeyGen-приложение с базой данных
+vars:
+  domain: heygen.example.ru   # ← ваш домен
+  server_name: heygen-app-1
+
+steps:
+  - name: Создать сервер
+    action: servers.create
+    with:
+      name: "{{ vars.server_name }}"
+      os: auto
+      preset: auto
+      ssh_key: auto
+      wait: true
+    save: {as: server}
+
+  - name: A-запись домена
+    action: dns.add
+    with:
+      fqdn: "{{ vars.domain }}"
+      type: A
+      value: "{{ server.ip }}"
+
+  - name: Подготовка сервера
+    action: deploy.provision
+    with: {server: "{{ vars.server_name }}", docker: true}
+
+  - name: MySQL в docker на сервере
+    action: deploy.mysql
+    with:
+      server: "{{ vars.server_name }}"
+      name: heygen
+      user: heygen
+    save: {as: mysql}
+
+  - name: Деплой приложения из репозитория
+    action: deploy.git
+    with:
+      server: "{{ vars.server_name }}"
+      repo: https://github.com/playalexey-sketch/heygen-integration.git
+      branch: main
+      domain: "{{ vars.domain }}"
+      port: 8000
+      ssl: true
+      compose_file: deploy/docker-compose.yml

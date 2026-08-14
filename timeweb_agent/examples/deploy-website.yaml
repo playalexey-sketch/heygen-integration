@@ -1,0 +1,51 @@
+# План: развернуть статический сайт на новом VPS + привязать домен.
+# Запуск:  python -m timeweb_agent run timeweb_agent/examples/deploy-website.yaml --yes
+#
+# Требования:
+#   - токен Timeweb (TIMEWEB_CLOUD_TOKEN в .env)
+#   - домен, делегированный на ns1.timeweb.ru / ns2.timeweb.ru
+#   - папка ./site рядом с этим файлом (или поменяйте path)
+
+name: Развернуть статический сайт на VPS
+vars:
+  domain: example.ru          # ← ваш домен
+  server_name: web-site-1     # имя сервера в панели
+
+steps:
+  # 1. Создаём сервер (если сервер с таким именем уже есть — агент
+  #    просто использует его и не будет создавать второй).
+  - name: Создать сервер (Ubuntu, самый дешёвый тариф, SSH-ключ)
+    action: servers.create
+    with:
+      name: "{{ vars.server_name }}"
+      os: auto
+      preset: auto
+      ssh_key: auto
+      wait: true
+      wait_timeout: 900
+    save: {as: server}
+
+  # 2. Прописываем A-запись домена на IP сервера
+  - name: A-запись домена на IP сервера
+    action: dns.add
+    with:
+      fqdn: "{{ vars.domain }}"
+      type: A
+      value: "{{ server.ip }}"
+
+  # 3. Готовим сервер (пакеты, docker, nginx, fail2ban)
+  - name: Базовая подготовка сервера
+    action: deploy.provision
+    with:
+      server: "{{ vars.server_name }}"
+      docker: true
+
+  # 4. Загружаем и публикуем сайт, выпускаем SSL
+  - name: Публикация сайта + Let's Encrypt
+    action: deploy.website
+    with:
+      server: "{{ vars.server_name }}"
+      path: ./site                 # папка с index.html
+      domain: "{{ vars.domain }}"
+      ssl: true
+      ssl_email: admin@example.ru  # ← ваша почта (или уберите строку)

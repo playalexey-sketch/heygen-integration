@@ -1,0 +1,8 @@
+# Ядро агента (API Timeweb Cloud)
+requests>=2.31
+
+# Для runbook (YAML-планы)
+PyYAML>=6.0
+
+# Для SSH-деплоя на VPS
+paramiko>=3.4
