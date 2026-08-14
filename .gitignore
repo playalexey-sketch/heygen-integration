@@ -59,3 +59,8 @@ ltx2_output/
 # Аватар-Студия
 studio_work/
 studio_output/
+
+# HeyGen Студия
+heygen_studio/videos/
+heygen_studio/work/
+heygen_studio/settings.json

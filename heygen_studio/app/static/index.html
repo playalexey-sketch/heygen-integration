@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HeyGen Студия</title>
+<style>
+:root{--bg:#0a0a0d;--card:#131318;--card2:#1a1a21;--line:#2a2a33;--gold:#d6af6a;
+ --goldbr:#f0cd8c;--txt:#f5f2ec;--grey:#9d99a3;--ok:#4ade80;--err:#f87171}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);
+ font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+a{color:var(--goldbr)}
+.wrap{max-width:1000px;margin:0 auto;padding:26px 18px 90px}
+header{text-align:center;margin-bottom:22px}
+h1{margin:0 0 6px;font-size:30px}
+.sub{color:var(--grey);font-size:13.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;
+ padding:20px;margin-bottom:16px}
+.card h2{margin:0;font-size:16px;display:flex;align-items:center;gap:10px;cursor:pointer;
+ user-select:none}
+.card h2 .ar{margin-left:auto;color:var(--grey);font-size:13px;transition:.2s}
+.card h2.open .ar{transform:rotate(180deg)}
+.num{width:25px;height:25px;border-radius:50%;background:var(--gold);color:#14140f;
+ font-size:12.5px;font-weight:700;display:grid;place-items:center;flex:none}
+.body{margin-top:16px}
+.hint{color:var(--grey);font-size:12.5px;margin:4px 0 12px}
+label{display:block;font-size:13px;color:var(--grey);margin:13px 0 5px}
+label b{color:var(--txt);font-weight:600}
+input[type=text],input[type=url],input[type=password],input[type=number],textarea,select{
+ width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);
+ border-radius:9px;padding:10px 12px;font:inherit;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--gold)}
+textarea{resize:vertical;min-height:80px}
+.row{display:flex;gap:13px;flex-wrap:wrap}
+.row>div{flex:1;min-width:165px}
+.tabs{display:flex;gap:7px;flex-wrap:wrap}
+.tab{padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:var(--card2);
+ cursor:pointer;font-size:13px;user-select:none;transition:.15s}
+.tab:hover{border-color:#3d3d48}
+.tab.on{border-color:var(--gold);background:rgba(214,175,106,.13);color:var(--goldbr)}
+.drop{border:1.5px dashed #3a3a45;border-radius:11px;padding:22px;text-align:center;
+ cursor:pointer;color:var(--grey);background:var(--card2);transition:.15s}
+.drop:hover,.drop.over{border-color:var(--gold);color:var(--goldbr)}
+.thumbs{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+.th{position:relative;width:80px;height:100px;border-radius:8px;overflow:hidden;
+ border:1px solid var(--line)}
+.th img{width:100%;height:100%;object-fit:cover}
+.th .x{position:absolute;top:2px;right:2px;width:19px;height:19px;border-radius:50%;
+ background:rgba(0,0,0,.8);font-size:12px;display:grid;place-items:center;cursor:pointer}
+.th .m{position:absolute;bottom:0;left:0;right:0;background:var(--gold);color:#14140f;
+ font-size:9px;text-align:center;font-weight:700}
+.fname{font-size:12px;color:var(--goldbr);margin-top:7px;word-break:break-all}
+.rng{display:flex;align-items:center;gap:11px}
+.rng input[type=range]{flex:1;accent-color:var(--gold)}
+.rng .v{min-width:46px;text-align:right;font-variant-numeric:tabular-nums;
+ color:var(--goldbr);font-size:13.5px}
+.go{width:100%;padding:15px;border:0;border-radius:11px;background:var(--gold);
+ color:#14140f;font-size:16px;font-weight:700;cursor:pointer}
+.go:hover{background:var(--goldbr)}.go:disabled{opacity:.5;cursor:not-allowed}
+.btn{padding:9px 15px;border:1px solid var(--line);border-radius:8px;background:var(--card2);
+ color:var(--txt);cursor:pointer;font:inherit;font-size:13px}
+.btn:hover{border-color:var(--gold)}
+.bar{height:7px;background:var(--card2);border-radius:99px;overflow:hidden;margin:13px 0 8px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--goldbr));
+ transition:width .4s}
+.log{background:#08080b;border:1px solid var(--line);border-radius:9px;padding:11px;
+ font:11.5px/1.6 ui-monospace,Menlo,Consolas,monospace;color:var(--grey);
+ max-height:180px;overflow:auto;white-space:pre-wrap;margin-top:11px}
+.msg{padding:11px 13px;border-radius:9px;font-size:13px;margin-top:11px}
+.msg.err{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);color:#fca5a5}
+.msg.ok{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);color:#86efac}
+.msg.warn{background:rgba(214,175,106,.09);border:1px solid rgba(214,175,106,.35);color:var(--goldbr)}
+.hidden{display:none!important}
+.dl{display:inline-block;padding:13px 22px;background:var(--gold);color:#14140f;
+ border-radius:10px;text-decoration:none;font-weight:700;margin:10px 8px 0 0}
+video{width:100%;max-width:420px;border-radius:11px;margin-top:12px;background:#000}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:9px;
+ max-height:280px;overflow:auto;margin-top:9px}
+.it{border:1.5px solid var(--line);border-radius:9px;padding:5px;cursor:pointer;
+ text-align:center;background:var(--card2)}
+.it.on{border-color:var(--gold);background:rgba(214,175,106,.12)}
+.it img{width:100%;height:72px;object-fit:cover;border-radius:5px;background:#000}
+.it span{font-size:10px;display:block;margin-top:4px;color:var(--grey);
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cnt{font-size:12px;color:var(--grey);text-align:right;margin-top:4px}
+.pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;
+ background:rgba(214,175,106,.15);color:var(--goldbr);margin-left:6px}
+.pill.test{background:rgba(74,222,128,.15);color:#86efac}
+details{margin-top:12px}
+summary{cursor:pointer;color:var(--goldbr);font-size:13.5px;padding:7px 0}
+.chk{display:flex;align-items:center;gap:9px;margin:11px 0}
+.chk input{width:17px;height:17px;accent-color:var(--gold)}
+.chk label{margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>HeyGen Студия</h1>
+  <div class="sub">Все настройки генерации фото, видео и голоса цифрового аватара</div>
+</header>
+
+<!-- ПОДКЛЮЧЕНИЕ -->
+<div class="card">
+  <h2 class="open" data-t="c0"><span class="num">⚙</span> Настройки подключения
+    <span id="mode-pill"></span><span class="ar">▾</span></h2>
+  <div class="body" id="c0">
+    <label><b>Ключ API HeyGen</b> — личный ключ вашего аккаунта</label>
+    <input type="password" id="key" placeholder="Вставьте ключ сюда">
+    <div class="hint">Где взять: <a href="https://app.heygen.com/settings/api" target="_blank">app.heygen.com/settings/api</a>.
+      Ключ хранится только на вашем компьютере, в файле settings.json.</div>
+
+    <label><b>Адрес сервера</b> — обычный режим или тестовый</label>
+    <div class="row">
+      <div><input type="text" id="base" placeholder="https://api.heygen.com"></div>
+      <div style="flex:0 0 auto;display:flex;gap:8px;align-items:flex-end">
+        <button type="button" class="btn" id="btn-real">Боевой</button>
+        <button type="button" class="btn" id="btn-test">Тестовый</button>
+      </div>
+    </div>
+    <div class="hint">Тестовый режим (127.0.0.1:8765) работает с эмулятором HeyGen —
+      можно проверить всю форму без ключа и без списания кредитов.</div>
+
+    <div style="display:flex;gap:9px;margin-top:14px;flex-wrap:wrap">
+      <button type="button" class="btn" id="save-key">Сохранить</button>
+      <button type="button" class="btn" id="check">Проверить связь</button>
+    </div>
+    <div id="check-res"></div>
+  </div>
+</div>
+
+<form id="form">
+
+<!-- 1. АВАТАР -->
+<div class="card">
+  <h2 class="open" data-t="c1"><span class="num">1</span> Внешность аватара<span class="ar">▾</span></h2>
+  <div class="body" id="c1">
+    <div class="tabs" id="av-tabs">
+      <div class="tab on" data-av="photo">📸 Из моих фото</div>
+      <div class="tab" data-av="existing">🤖 Готовый аватар</div>
+      <div class="tab" data-av="prompt">✨ Создать по описанию</div>
+    </div>
+
+    <div id="av-photo">
+      <div class="drop" id="drop-photo" style="margin-top:14px">
+        <div style="font-size:24px">🖼</div><b>Нажмите или перетащите фото</b><br>
+        <span style="font-size:12px">Можно несколько. Первое — основное</span>
+      </div>
+      <input type="file" id="photos" accept="image/*" multiple class="hidden">
+      <div class="thumbs" id="thumbs"></div>
+      <div class="hint">Требования: анфас, лицо крупно, глаза открыты, ровный свет,
+        без очков и головных уборов, от 1000 пикселей по ширине.</div>
+      <label><b>Название аватара</b> — как он будет назван в вашем аккаунте</label>
+      <input type="text" name="avatar_name" placeholder="Мой аватар">
+    </div>
+
+    <div id="av-existing" class="hidden">
+      <button type="button" class="btn" id="load-av" style="margin-top:14px">Загрузить моих аватаров</button>
+      <div class="grid" id="avatars"></div>
+      <input type="hidden" name="avatar_id" id="avatar_id">
+    </div>
+
+    <div id="av-prompt" class="hidden">
+      <label><b>Описание внешности</b> — возраст, одежда, фон, освещение</label>
+      <textarea name="appearance_prompt" id="appearance_prompt"
+        placeholder="Женщина 35 лет, тёмные волосы собраны, уверенный доброжелательный взгляд, тёмно-синий пиджак, тёмный студийный фон, тёплый мягкий свет"></textarea>
+      <div class="hint">До 1000 символов. Чем конкретнее — тем точнее результат.</div>
+      <label><b>Название аватара</b></label>
+      <input type="text" name="avatar_name_p" placeholder="Мой персонаж">
+
+      <details>
+        <summary>Подобрать внешность заранее (сгенерировать варианты фото)</summary>
+        <div class="row">
+          <div><label><b>Возраст</b></label><select id="g_age"></select></div>
+          <div><label><b>Пол</b></label><select id="g_gender"></select></div>
+          <div><label><b>Внешность (этнотип)</b></label><select id="g_eth"></select></div>
+        </div>
+        <div class="row">
+          <div><label><b>Стиль изображения</b></label><select id="g_style"></select></div>
+          <div><label><b>Ориентация кадра</b></label><select id="g_or"></select></div>
+          <div><label><b>Крупность плана</b></label><select id="g_pose"></select></div>
+        </div>
+        <button type="button" class="btn" id="gen-photo" style="margin-top:13px">Сгенерировать варианты</button>
+        <div id="gen-prog" class="hidden"><div class="bar"><i id="gen-fill"></i></div>
+          <div class="sub" id="gen-stage"></div></div>
+        <div class="grid" id="gen-imgs"></div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<!-- 2. ГОЛОС -->
+<div class="card">
+  <h2 class="open" data-t="c2"><span class="num">2</span> Голос<span class="ar">▾</span></h2>
+  <div class="body" id="c2">
+    <div class="tabs" id="v-tabs">
+      <div class="tab on" data-v="library">🔊 Из библиотеки</div>
+      <div class="tab" data-v="clone">🎙 Клонировать мой</div>
+      <div class="tab" data-v="cloned_id">🆔 Ранее клонированный</div>
+      <div class="tab" data-v="audio">🎧 Свой файл</div>
+      <div class="tab" data-v="audio_url">🔗 Аудио по ссылке</div>
+    </div>
+
+    <div id="v-library" style="margin-top:14px">
+      <button type="button" class="btn" id="load-voices">Загрузить голоса</button>
+      <div class="row" style="margin-top:11px">
+        <div><label><b>Фильтр по языку</b></label>
+          <input type="text" id="vfilter" placeholder="например: Russian"></div>
+        <div><label><b>Голос</b></label>
+          <select id="voice_sel"><option value="">— сначала загрузите список —</option></select></div>
+      </div>
+      <audio id="vprev" controls class="hidden" style="width:100%;margin-top:10px"></audio>
+    </div>
+
+    <div id="v-clone" class="hidden" style="margin-top:14px">
+      <div class="drop" id="drop-sample"><div style="font-size:20px">🎙</div>
+        <b>Образец вашего голоса</b><br>
+        <span style="font-size:12px">30–120 секунд чистой речи, без музыки и шума</span></div>
+      <input type="file" id="voice_sample" accept="audio/*" class="hidden">
+      <div class="fname" id="sample-name"></div>
+      <label><b>Название голоса</b></label>
+      <input type="text" name="voice_name" placeholder="Мой голос">
+      <div class="hint">После клонирования появится ID — сохраните его,
+        чтобы в следующий раз не клонировать заново.</div>
+    </div>
+
+    <div id="v-cloned_id" class="hidden" style="margin-top:14px">
+      <label><b>ID клонированного голоса</b></label>
+      <input type="text" id="cloned_id_input" placeholder="voice_cloned_xxxxx">
+      <div id="saved-voices" class="hint"></div>
+    </div>
+
+    <div id="v-audio" class="hidden" style="margin-top:14px">
+      <div class="drop" id="drop-audio"><div style="font-size:20px">🎧</div>
+        <b>Готовая озвучка</b><br>
+        <span style="font-size:12px">Аватар произнесёт ровно эту запись</span></div>
+      <input type="file" id="audio" accept="audio/*" class="hidden">
+      <div class="fname" id="audio-name"></div>
+    </div>
+
+    <div id="v-audio_url" class="hidden" style="margin-top:14px">
+      <label><b>Прямая ссылка на аудиофайл</b></label>
+      <input type="url" name="audio_url" placeholder="https://example.com/voice.mp3">
+    </div>
+
+    <details id="voice-tune">
+      <summary>Тонкая настройка звучания</summary>
+      <div class="row">
+        <div><label><b>Скорость речи</b> — 1.0 обычная</label>
+          <div class="rng"><input type="range" id="speed" min="0.5" max="1.5" step="0.05" value="1">
+            <span class="v" id="speed-v">1.00</span></div></div>
+        <div><label><b>Высота голоса</b> — ниже / выше</label>
+          <div class="rng"><input type="range" id="pitch" min="-50" max="50" step="1" value="0">
+            <span class="v" id="pitch-v">0</span></div></div>
+      </div>
+      <div class="row">
+        <div><label><b>Громкость</b></label>
+          <div class="rng"><input type="range" id="volume" min="0" max="1" step="0.05" value="1">
+            <span class="v" id="volume-v">1.00</span></div></div>
+        <div><label><b>Эмоция подачи</b></label><select id="emotion"></select></div>
+        <div><label><b>Язык и акцент</b></label><select id="locale"></select></div>
+      </div>
+      <div class="chk">
+        <input type="checkbox" id="use_engine"><label for="use_engine">
+          <b>Расширенные настройки синтеза</b></label>
+      </div>
+      <div id="engine-box" class="hidden">
+        <div class="row">
+          <div><label><b>Схожесть с оригиналом</b> — для клонированного голоса</label>
+            <div class="rng"><input type="range" id="similarity" min="0" max="1" step="0.05" value="0.5">
+              <span class="v" id="similarity-v">0.50</span></div></div>
+          <div><label><b>Стабильность</b> — выше значит ровнее, но монотоннее</label>
+            <div class="rng"><input type="range" id="stability" min="0" max="1" step="0.05" value="0.5">
+              <span class="v" id="stability-v">0.50</span></div></div>
+        </div>
+        <div class="chk"><input type="checkbox" id="speaker_boost" checked>
+          <label for="speaker_boost"><b>Усиление чёткости речи</b></label></div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- 3. ТЕКСТ -->
+<div class="card">
+  <h2 class="open" data-t="c3"><span class="num">3</span> Текст речи<span class="ar">▾</span></h2>
+  <div class="body" id="c3">
+    <div class="hint">Что произнесёт аватар. Не нужен, если выбрана своя озвучка.</div>
+    <textarea name="script" id="script" style="min-height:110px"
+      placeholder="Например: Ты замечал, что в твоём Роду всё повторяется по кругу?"></textarea>
+    <div class="cnt"><span id="chars">0</span> / 5000 символов ·
+      <span id="words">0</span> слов ≈ <span id="secs">0</span> сек</div>
+  </div>
+</div>
+
+<!-- 4. ПОВЕДЕНИЕ В КАДРЕ -->
+<div class="card">
+  <h2 class="open" data-t="c4"><span class="num">4</span> Поведение в кадре<span class="ar">▾</span></h2>
+  <div class="body" id="c4">
+    <label><b>Сценарий движений</b> — жесты, эмоция, поведение аватара</label>
+    <textarea name="motion_prompt"
+      placeholder="Спокойный уверенный взгляд в камеру, лёгкие естественные жесты руками, к финалу доверительная полуулыбка"></textarea>
+    <div class="hint">Описание на обычном языке. Управляет жестами и движением тела.</div>
+    <div class="row">
+      <div><label><b>Движок генерации</b> — качество и возможности</label>
+        <select name="engine" id="engine"></select></div>
+      <div id="expr-box"><label><b>Выразительность мимики</b></label>
+        <select name="expressiveness" id="expressiveness"></select></div>
+    </div>
+  </div>
+</div>
+
+<!-- 5. ФОРМАТ -->
+<div class="card">
+  <h2 class="open" data-t="c5"><span class="num">5</span> Формат видео<span class="ar">▾</span></h2>
+  <div class="body" id="c5">
+    <div class="row">
+      <div><label><b>Соотношение сторон</b></label><select name="aspect_ratio" id="aspect_ratio"></select></div>
+      <div><label><b>Разрешение</b></label><select name="resolution" id="resolution"></select></div>
+      <div><label><b>Формат файла</b></label><select name="output_format" id="output_format"></select></div>
+    </div>
+    <label><b>Название ролика</b> — для вашего архива в HeyGen</label>
+    <input type="text" name="title" placeholder="Например: Reels про долги, дубль 1">
+  </div>
+</div>
+
+<!-- 6. ФОН -->
+<div class="card">
+  <h2 data-t="c6"><span class="num">6</span> Фон<span class="ar">▾</span></h2>
+  <div class="body hidden" id="c6">
+    <label><b>Что сделать с фоном</b></label>
+    <select name="background_type" id="background_type"></select>
+    <div id="bg-color" class="hidden"><label><b>Цвет фона</b></label>
+      <input type="text" name="background_color" placeholder="#0B0B0F"></div>
+    <div id="bg-url" class="hidden"><label><b>Ссылка на картинку фона</b></label>
+      <input type="url" name="background_url" placeholder="https://example.com/bg.jpg"></div>
+    <div id="bg-file" class="hidden"><label><b>Файл фона</b></label>
+      <div class="drop" id="drop-bg"><b>Выбрать картинку</b></div>
+      <input type="file" id="background_file" accept="image/*" class="hidden">
+      <div class="fname" id="bg-name"></div></div>
+  </div>
+</div>
+
+<!-- 7. СУБТИТРЫ -->
+<div class="card">
+  <h2 data-t="c7"><span class="num">7</span> Субтитры<span class="ar">▾</span></h2>
+  <div class="body hidden" id="c7">
+    <div class="row">
+      <div><label><b>Файл субтитров</b></label><select name="caption_format" id="caption_format"></select></div>
+      <div><label><b>Вшить текст в кадр</b></label><select name="caption_style" id="caption_style"></select></div>
+    </div>
+    <div class="hint">Субтитры полезны: большинство смотрит соцсети без звука.</div>
+  </div>
+</div>
+
+<!-- 8. ДОПОЛНИТЕЛЬНО -->
+<div class="card">
+  <h2 data-t="c8"><span class="num">8</span> Водяной знак и прочее<span class="ar">▾</span></h2>
+  <div class="body hidden" id="c8">
+    <label><b>Ссылка на логотип</b> — PNG или JPEG</label>
+    <input type="url" name="watermark_url" placeholder="https://example.com/logo.png">
+    <div class="row">
+      <div><label><b>Положение</b></label><select name="watermark_position" id="watermark_position"></select></div>
+      <div><label><b>Размер</b></label>
+        <div class="rng"><input type="range" id="wm_scale" min="0.1" max="3" step="0.1" value="1">
+          <span class="v" id="wm_scale-v">1.0</span></div></div>
+      <div><label><b>Прозрачность</b></label>
+        <div class="rng"><input type="range" id="wm_op" min="0" max="1" step="0.05" value="1">
+          <span class="v" id="wm_op-v">1.00</span></div></div>
+    </div>
+    <div class="row">
+      <div><label><b>Отступ по горизонтали, пикселей</b></label>
+        <input type="number" name="watermark_x" value="0"></div>
+      <div><label><b>Отступ по вертикали, пикселей</b></label>
+        <input type="number" name="watermark_y" value="0"></div>
+    </div>
+    <label><b>Адрес уведомления о готовности</b> — необязательно</label>
+    <input type="url" name="callback_url" placeholder="https://ваш-сайт/webhook">
+    <label><b>ID словаря произношения</b> — если настроен в HeyGen</label>
+    <input type="text" name="brand_glossary_id" placeholder="">
+  </div>
+</div>
+
+<button class="go" id="go" type="submit">Создать видео</button>
+</form>
+
+<div class="card hidden" id="prog">
+  <h2><span class="num">⏳</span> <span id="stage">Готовлю…</span></h2>
+  <div class="bar"><i id="fill"></i></div>
+  <div class="sub" id="pct">0%</div>
+  <div class="log" id="log"></div>
+</div>
+
+<div class="card hidden" id="done">
+  <h2><span class="num">✓</span> Видео готово</h2>
+  <video id="player" controls></video>
+  <div><a class="dl" id="dl" download>⬇ Скачать видео</a>
+       <a class="dl" id="dlsub" download style="display:none">⬇ Субтитры</a></div>
+  <div class="msg ok" id="meta"></div>
+  <div id="save-voice-box" class="hidden" style="margin-top:12px">
+    <button type="button" class="btn" id="save-voice">Сохранить этот голос для будущих роликов</button>
+  </div>
+</div>
+
+<div id="err" class="msg err hidden"></div>
+
+<div class="card">
+  <h2 data-t="c9"><span class="num">📁</span> Мои готовые видео<span class="ar">▾</span></h2>
+  <div class="body hidden" id="c9">
+    <button type="button" class="btn" id="load-hist">Обновить список</button>
+    <div id="hist" style="margin-top:11px"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+let photoFiles=[], audioFile=null, sampleFile=null, bgFile=null;
+let avMode='photo', voiceMode='library', timer=null, allVoices=[], lastVoiceId=null;
+
+// сворачивание блоков
+$$('[data-t]').forEach(h=>h.onclick=()=>{
+  const b=$('#'+h.dataset.t);
+  b.classList.toggle('hidden'); h.classList.toggle('open');
+});
+
+function fill(sel, pairs, def){
+  const el=$(sel); if(!el) return;
+  el.innerHTML='';
+  pairs.forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p[0]; o.textContent=p[1];
+    if(p[2]) o.title=p[2];
+    el.appendChild(o);
+  });
+  if(def!==undefined) el.value=def;
+}
+
+// загрузка справочников
+fetch('/api/options').then(r=>r.json()).then(o=>{
+  fill('#engine',o.engines,'avatar_iv');
+  fill('#expressiveness',o.expressiveness,'low');
+  fill('#aspect_ratio',o.aspect_ratios,'9:16');
+  fill('#resolution',o.resolutions,'1080p');
+  fill('#output_format',o.output_formats,'mp4');
+  fill('#background_type',o.background_types,'none');
+  fill('#caption_format',o.caption_formats,'');
+  fill('#caption_style',o.caption_styles,'');
+  fill('#watermark_position',o.watermark_positions,'bottom_right');
+  fill('#emotion',o.voice_emotions,'');
+  fill('#locale',o.voice_locales,'');
+  fill('#g_age',o.avatar_age,'Young Adult');
+  fill('#g_gender',o.avatar_gender,'Unspecified');
+  fill('#g_eth',o.avatar_ethnicity,'Unspecified');
+  fill('#g_style',o.avatar_style,'Realistic');
+  fill('#g_or',o.avatar_orientation,'vertical');
+  fill('#g_pose',o.avatar_pose,'half_body');
+  $('#engine').onchange();
+});
+
+// настройки
+function loadSettings(){
+  fetch('/api/settings').then(r=>r.json()).then(s=>{
+    $('#base').value=s.base_url;
+    $('#mode-pill').innerHTML = s.is_test_mode
+      ? '<span class="pill test">тестовый режим</span>'
+      : (s.has_key?'<span class="pill">ключ сохранён</span>':'<span class="pill">ключ не задан</span>');
+    if(s.saved_voices&&s.saved_voices.length){
+      $('#saved-voices').innerHTML='Сохранённые: '+s.saved_voices.map(v=>
+        `<a href="#" onclick="document.querySelector('#cloned_id_input').value='${v.voice_id}';return false">${v.name}</a>`
+      ).join(' · ');
+    }
+  });
+}
+loadSettings();
+
+$('#btn-real').onclick=()=>$('#base').value='https://api.heygen.com';
+$('#btn-test').onclick=()=>{$('#base').value='http://127.0.0.1:8765';
+  if(!$('#key').value) $('#key').value='test_key';};
+$('#save-key').onclick=async()=>{
+  await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({api_key:$('#key').value,base_url:$('#base').value})});
+  $('#check-res').innerHTML='<div class="msg ok">Сохранено.</div>';
+  loadSettings();
+};
+$('#check').onclick=async()=>{
+  $('#check-res').innerHTML='<div class="msg warn">Проверяю…</div>';
+  const r=await fetch('/api/check',{method:'POST'}); const d=await r.json();
+  $('#check-res').innerHTML = d.ok
+    ? `<div class="msg ok">Связь есть. Голосов: ${d.voices}, аватаров: ${d.avatars}.</div>`
+    : `<div class="msg err">${d.error}</div>`;
+};
+
+// вкладки аватара
+$$('[data-av]').forEach(t=>t.onclick=()=>{
+  $$('[data-av]').forEach(x=>x.classList.remove('on')); t.classList.add('on');
+  avMode=t.dataset.av;
+  ['photo','existing','prompt'].forEach(m=>
+    $('#av-'+m).classList.toggle('hidden',m!==avMode));
+});
+// вкладки голоса
+$$('[data-v]').forEach(t=>t.onclick=()=>{
+  $$('[data-v]').forEach(x=>x.classList.remove('on')); t.classList.add('on');
+  voiceMode=t.dataset.v;
+  ['library','clone','cloned_id','audio','audio_url'].forEach(m=>
+    $('#v-'+m).classList.toggle('hidden',m!==voiceMode));
+  $('#voice-tune').style.display=(voiceMode==='audio'||voiceMode==='audio_url')?'none':'';
+});
+
+// движок → выразительность
+$('#engine').onchange=()=>{
+  $('#expr-box').style.display = $('#engine').value==='avatar_iv'?'':'none';
+};
+
+// фон
+$('#background_type').onchange=()=>{
+  const v=$('#background_type').value;
+  $('#bg-color').classList.toggle('hidden',v!=='color');
+  $('#bg-url').classList.toggle('hidden',v!=='image_url');
+  $('#bg-file').classList.toggle('hidden',v!=='image_file');
+};
+
+// ползунки
+function rng(id,fmt){const i=$('#'+id),v=$('#'+id+'-v');
+  if(!i)return; const u=()=>v.textContent=fmt(i.value); i.oninput=u; u();}
+rng('speed',x=>Number(x).toFixed(2));
+rng('pitch',x=>x);
+rng('volume',x=>Number(x).toFixed(2));
+rng('similarity',x=>Number(x).toFixed(2));
+rng('stability',x=>Number(x).toFixed(2));
+rng('wm_scale',x=>Number(x).toFixed(1));
+rng('wm_op',x=>Number(x).toFixed(2));
+$('#use_engine').onchange=e=>$('#engine-box').classList.toggle('hidden',!e.target.checked);
+
+// файлы
+function bindDrop(dropSel,inputSel,nameSel,setter,type){
+  $(dropSel).onclick=()=>$(inputSel).click();
+  $(inputSel).onchange=e=>{const f=e.target.files[0];if(!f)return;setter(f);
+    $(nameSel).textContent='✓ '+f.name+' ('+(f.size/1048576).toFixed(1)+' МБ)';};
+  ['dragover','dragleave','drop'].forEach(ev=>$(dropSel).addEventListener(ev,e=>{
+    e.preventDefault(); $(dropSel).classList.toggle('over',ev==='dragover');
+    if(ev==='drop'){const f=[...e.dataTransfer.files].find(x=>x.type.startsWith(type));
+      if(f){setter(f);$(nameSel).textContent='✓ '+f.name;}}
+  }));
+}
+bindDrop('#drop-audio','#audio','#audio-name',f=>audioFile=f,'audio');
+bindDrop('#drop-sample','#voice_sample','#sample-name',f=>sampleFile=f,'audio');
+bindDrop('#drop-bg','#background_file','#bg-name',f=>bgFile=f,'image');
+
+$('#drop-photo').onclick=()=>$('#photos').click();
+$('#photos').onchange=e=>{photoFiles=photoFiles.concat([...e.target.files]);thumbs();};
+['dragover','dragleave','drop'].forEach(ev=>$('#drop-photo').addEventListener(ev,e=>{
+  e.preventDefault(); $('#drop-photo').classList.toggle('over',ev==='dragover');
+  if(ev==='drop'){photoFiles=photoFiles.concat([...e.dataTransfer.files]
+    .filter(f=>f.type.startsWith('image/')));thumbs();}
+}));
+function thumbs(){
+  const b=$('#thumbs'); b.innerHTML='';
+  photoFiles.forEach((f,i)=>{
+    const d=document.createElement('div');d.className='th';
+    const im=document.createElement('img');im.src=URL.createObjectURL(f);d.appendChild(im);
+    const x=document.createElement('div');x.className='x';x.textContent='×';
+    x.onclick=()=>{photoFiles.splice(i,1);thumbs();};d.appendChild(x);
+    if(i===0){const m=document.createElement('div');m.className='m';
+      m.textContent='ОСНОВНОЕ';d.appendChild(m);}
+    b.appendChild(d);
+  });
+}
+
+// счётчик текста
+$('#script').oninput=e=>{
+  const t=e.target.value, w=t.trim().split(/\s+/).filter(Boolean).length;
+  $('#chars').textContent=t.length; $('#words').textContent=w;
+  $('#secs').textContent=Math.round(w/2.2);
+};
+
+// аватары
+$('#load-av').onclick=async()=>{
+  $('#load-av').textContent='Загружаю…';
+  const d=await (await fetch('/api/avatars')).json();
+  $('#load-av').textContent='Обновить список';
+  if(d.error) return showErr(d.error);
+  const g=$('#avatars'); g.innerHTML='';
+  (d.items||[]).forEach(a=>{
+    const el=document.createElement('div');el.className='it';
+    el.innerHTML=`<img src="${a.preview||''}" onerror="this.style.opacity=.15"><span>${a.name}</span>`;
+    el.onclick=()=>{$$('#avatars .it').forEach(x=>x.classList.remove('on'));
+      el.classList.add('on');$('#avatar_id').value=a.id;};
+    g.appendChild(el);
+  });
+  if(!(d.items||[]).length) g.innerHTML='<div class="sub">Аватаров не найдено</div>';
+};
+
+// голоса
+$('#load-voices').onclick=async()=>{
+  $('#load-voices').textContent='Загружаю…';
+  const d=await (await fetch('/api/voices')).json();
+  $('#load-voices').textContent='Обновить список';
+  if(d.error) return showErr(d.error);
+  allVoices=d.items||[]; renderVoices();
+};
+function renderVoices(){
+  const f=($('#vfilter').value||'').toLowerCase();
+  const s=$('#voice_sel'); s.innerHTML='<option value="">— выберите голос —</option>';
+  allVoices.filter(v=>!f||(v.language||'').toLowerCase().includes(f)
+      ||(v.name||'').toLowerCase().includes(f))
+    .forEach(v=>{
+      const o=document.createElement('option'); o.value=v.id;
+      o.textContent=`${v.name} · ${v.language} · ${v.gender}`+(v.emotion_support?' · эмоции':'');
+      o.dataset.preview=v.preview||''; s.appendChild(o);
+    });
+}
+$('#vfilter').oninput=renderVoices;
+$('#voice_sel').onchange=()=>{
+  const p=$('#voice_sel').selectedOptions[0]?.dataset.preview, a=$('#vprev');
+  if(p){a.src=p;a.classList.remove('hidden');}else a.classList.add('hidden');
+};
+
+// генерация внешности
+$('#gen-photo').onclick=async()=>{
+  const ap=$('#appearance_prompt').value.trim();
+  if(!ap) return showErr('Сначала опишите внешность аватара.');
+  const fd=new FormData();
+  fd.append('name',$('[name=avatar_name_p]').value||'Мой аватар');
+  fd.append('appearance',ap);
+  fd.append('age',$('#g_age').value); fd.append('gender',$('#g_gender').value);
+  fd.append('ethnicity',$('#g_eth').value); fd.append('style',$('#g_style').value);
+  fd.append('orientation',$('#g_or').value); fd.append('pose',$('#g_pose').value);
+  const d=await (await fetch('/api/generate-appearance',{method:'POST',body:fd})).json();
+  if(d.error) return showErr(d.error);
+  $('#gen-prog').classList.remove('hidden');
+  const t=setInterval(async()=>{
+    const j=await (await fetch('/api/job/'+d.job_id)).json();
+    $('#gen-fill').style.width=(j.progress||0)+'%'; $('#gen-stage').textContent=j.stage||'';
+    if(j.status==='done'){clearInterval(t);$('#gen-prog').classList.add('hidden');
+      const g=$('#gen-imgs');g.innerHTML='';
+      (j.images||[]).forEach(u=>{const el=document.createElement('div');el.className='it';
+        el.innerHTML=`<img src="${u}">`;g.appendChild(el);});}
+    if(j.status==='error'){clearInterval(t);$('#gen-prog').classList.add('hidden');showErr(j.error);}
+  },2500);
+};
+
+function showErr(m){$('#err').textContent='⚠️ '+m;$('#err').classList.remove('hidden');
+  window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});}
+
+// отправка
+$('#form').onsubmit=async e=>{
+  e.preventDefault();
+  $('#err').classList.add('hidden'); $('#done').classList.add('hidden');
+  const script=$('#script').value.trim();
+
+  if(avMode==='photo'&&!photoFiles.length) return showErr('Загрузите хотя бы одно фото.');
+  if(avMode==='existing'&&!$('#avatar_id').value) return showErr('Выберите готовый аватар.');
+  if(avMode==='prompt'&&!$('#appearance_prompt').value.trim())
+    return showErr('Опишите внешность аватара.');
+  if(voiceMode==='audio'&&!audioFile) return showErr('Загрузите файл озвучки.');
+  if(voiceMode==='clone'&&!sampleFile) return showErr('Загрузите образец голоса.');
+  if(voiceMode!=='audio'&&voiceMode!=='audio_url'&&!script)
+    return showErr('Впишите текст речи в блоке 3.');
+  if(voiceMode==='library'&&!$('#voice_sel').value) return showErr('Выберите голос из библиотеки.');
+  if(voiceMode==='cloned_id'&&!$('#cloned_id_input').value.trim())
+    return showErr('Укажите ID клонированного голоса.');
+
+  const fd=new FormData($('#form'));
+  fd.set('avatar_mode',avMode);
+  fd.set('voice_mode',voiceMode);
+  if(avMode==='prompt') fd.set('avatar_name',$('[name=avatar_name_p]').value||'');
+  fd.set('voice_id_input', voiceMode==='library'?$('#voice_sel').value
+    : voiceMode==='cloned_id'?$('#cloned_id_input').value.trim():'');
+  fd.set('voice_speed',$('#speed').value);
+  fd.set('voice_pitch',$('#pitch').value);
+  fd.set('voice_volume',$('#volume').value);
+  fd.set('voice_emotion',$('#emotion').value);
+  fd.set('voice_locale',$('#locale').value);
+  fd.set('use_engine_settings',$('#use_engine').checked?'true':'false');
+  fd.set('similarity_boost',$('#similarity').value);
+  fd.set('stability',$('#stability').value);
+  fd.set('speaker_boost',$('#speaker_boost').checked?'true':'false');
+  fd.set('watermark_scale',$('#wm_scale').value);
+  fd.set('watermark_opacity',$('#wm_op').value);
+  photoFiles.forEach(f=>fd.append('photos',f));
+  if(voiceMode==='audio'&&audioFile) fd.append('audio',audioFile);
+  if(voiceMode==='clone'&&sampleFile) fd.append('voice_sample',sampleFile);
+  if(bgFile) fd.append('background_file',bgFile);
+
+  $('#go').disabled=true;$('#go').textContent='Отправляю…';
+  $('#prog').classList.remove('hidden');$('#log').textContent='';
+  const d=await (await fetch('/api/generate',{method:'POST',body:fd})).json();
+  if(d.error){$('#go').disabled=false;$('#go').textContent='Создать видео';
+    $('#prog').classList.add('hidden');return showErr(d.error);}
+  poll(d.job_id);
+};
+
+function poll(id){
+  clearInterval(timer);
+  timer=setInterval(async()=>{
+    const j=await (await fetch('/api/job/'+id)).json();
+    $('#stage').textContent=j.stage||'…';
+    $('#fill').style.width=(j.progress||0)+'%';
+    $('#pct').textContent=(j.progress||0)+'%';
+    if(j.log){const l=$('#log');l.textContent=j.log.join('\n');l.scrollTop=l.scrollHeight;}
+    if(j.status==='done'){
+      clearInterval(timer);
+      $('#prog').classList.add('hidden');$('#done').classList.remove('hidden');
+      $('#player').src=j.download; $('#dl').href=j.download;
+      if(j.subtitles){$('#dlsub').href=j.subtitles;$('#dlsub').style.display='';}
+      let m=`Размер: ${j.size_mb} МБ`;
+      if(j.duration) m+=` · Длительность: ${j.duration} сек`;
+      if(j.cloned_voice_id){m+=` · ID вашего голоса: ${j.cloned_voice_id}`;
+        lastVoiceId=j.cloned_voice_id;$('#save-voice-box').classList.remove('hidden');}
+      $('#meta').textContent=m;
+      $('#go').disabled=false;$('#go').textContent='Создать ещё одно';
+      loadHist();
+      window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+    }
+    if(j.status==='error'){
+      clearInterval(timer);$('#prog').classList.add('hidden');
+      $('#go').disabled=false;$('#go').textContent='Создать видео';
+      showErr(j.error||'Неизвестная ошибка');
+    }
+  },2500);
+}
+
+$('#save-voice').onclick=async()=>{
+  if(!lastVoiceId)return;
+  await fetch('/api/save-voice',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({voice_id:lastVoiceId,name:$('[name=voice_name]').value||'Мой голос'})});
+  $('#save-voice').textContent='Сохранено ✓'; loadSettings();
+};
+
+async function loadHist(){
+  const d=await (await fetch('/api/history')).json();
+  $('#hist').innerHTML=(d.items||[]).length
+    ? d.items.map(i=>`<div style="padding:8px 0;border-bottom:1px solid var(--line)">
+        <a href="${i.url}" download>${i.name}</a>
+        <span class="sub"> · ${i.size_mb} МБ · ${i.time}</span></div>`).join('')
+    : '<div class="sub">Пока пусто</div>';
+}
+$('#load-hist').onclick=loadHist;
+loadHist();
+</script>
+</body>
+</html>
