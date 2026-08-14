@@ -6,3 +6,6 @@ PyYAML>=6.0
 
 # Для SSH-деплоя на VPS
 paramiko>=3.4
+
+# Веб-панель агента (python -m timeweb_agent web)
+flask>=3.0

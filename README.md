@@ -471,15 +471,20 @@ heygen-integration/
 ## 🤖 Timeweb Cloud Agent
 
 В репозитории есть агент для управления хостингом Timeweb Cloud
-(серверы, базы данных, домены/DNS, PaaS-приложения и деплой по SSH):
+(серверы, базы данных, домены/DNS, PaaS-приложения, деплой по SSH
+и диагностика для поддержки) с веб-панелью:
 
-- документация: [`timeweb_agent/README.md`](timeweb_agent/README.md)
-- примеры планов: [`timeweb_agent/examples/`](timeweb_agent/examples/)
-- запуск: `python -m timeweb_agent doctor`
+- 🖥️ запуск с диска двойным кликом: `run_twagent_web.bat` (Windows) /
+  `./run_twagent_web.sh` (Linux/Mac) — откроется веб-интерфейс
+- 🔑 шаблон настроек с комментариями: [`timeweb_agent/.env.example`](timeweb_agent/.env.example)
+- 📖 документация: [`timeweb_agent/README.md`](timeweb_agent/README.md)
+- 📋 примеры планов: [`timeweb_agent/examples/`](timeweb_agent/examples/)
+- 🩺 диагностика для поддержки (nproc, free -h, df -h, fdisk -l):
+  `python -m timeweb_agent diag --server имя_сервера`
 
 ```bash
 pip install -r timeweb_agent/requirements.txt
-# токен панели → .env: TIMEWEB_CLOUD_TOKEN=...
+# токен панели → .env: TIMEWEB_CLOUD_TOKEN=... (см. шаблон)
 python -m timeweb_agent doctor
 ```
 

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Timeweb Агент — панель управления</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">⚡ <b>Timeweb</b> Агент</div>
+    <div class="top-actions">
+      <span id="demo-banner" class="banner hidden">ДЕМО-РЕЖИМ — данные ненастоящие</span>
+      <span id="api-status" class="status-pill"><span class="dot"></span><span id="api-status-text">проверка…</span></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar">
+      <button class="nav-item active" data-view="overview">🏠 <span>Обзор</span></button>
+      <button class="nav-item" data-view="servers">🖥️ <span>Серверы</span></button>
+      <button class="nav-item" data-view="dbs">🗄️ <span>Базы данных</span></button>
+      <button class="nav-item" data-view="domains">🌐 <span>Домены и DNS</span></button>
+      <button class="nav-item" data-view="apps">🚀 <span>Приложения</span></button>
+      <button class="nav-item" data-view="deploy">📦 <span>Деплой</span></button>
+      <button class="nav-item" data-view="ssh">🔧 <span>SSH и диагностика</span></button>
+      <button class="nav-item" data-view="settings">⚙️ <span>Настройки</span></button>
+    </nav>
+
+    <main class="content">
+      <!-- ОБЗОР -->
+      <section id="view-overview" class="view active">
+        <div class="page-head">
+          <h2>Обзор аккаунта</h2>
+          <button class="btn ghost" id="btn-overview-refresh">↻ Обновить</button>
+        </div>
+        <div class="cards" id="overview-cards"></div>
+        <div class="card">
+          <h3>Проверка подключения</h3>
+          <p class="muted">Кнопка проверяет токен и показывает сводку по всем ресурсам аккаунта.</p>
+          <button class="btn" id="btn-doctor">Проверить подключение</button>
+          <pre class="out" id="doctor-out" hidden></pre>
+        </div>
+      </section>
+
+      <!-- СЕРВЕРЫ -->
+      <section id="view-servers" class="view">
+        <div class="page-head"><h2>Облачные серверы</h2><button class="btn ghost" id="btn-servers-refresh">↻ Обновить</button></div>
+        <div class="card">
+          <h3>➕ Создать сервер</h3>
+          <p class="muted">Значение <code>auto</code> — агент сам выберет Ubuntu 24.04, самый дешёвый тариф и создаст SSH-ключ.</p>
+          <form id="server-create-form" class="form-grid">
+            <label>Имя сервера<input name="name" required placeholder="my-server"></label>
+            <label>ОС (ID или auto)<input name="os" value="auto"></label>
+            <label>Тариф (ID или auto)<input name="preset" value="auto"></label>
+            <label>SSH-ключ (auto / имя / ID)<input name="ssh_key" value="auto"></label>
+            <label>Комментарий<input name="comment" placeholder="необязательно"></label>
+            <label class="check"><input type="checkbox" name="ddos"> Защита от DDoS</label>
+            <label class="check"><input type="checkbox" name="wait" checked> Дождаться готовности</label>
+            <button type="submit" class="btn primary" id="btn-server-create">Создать (платно)</button>
+          </form>
+        </div>
+        <div class="card">
+          <h3>Список серверов</h3>
+          <div class="table-wrap"><table id="servers-table"></table></div>
+        </div>
+      </section>
+
+      <!-- БАЗЫ ДАННЫХ -->
+      <section id="view-dbs" class="view">
+        <div class="page-head"><h2>Базы данных (DBaaS)</h2><button class="btn ghost" id="btn-dbs-refresh">↻ Обновить</button></div>
+        <div class="card">
+          <h3>➕ Создать кластер БД</h3>
+          <p class="muted">Управляемая база данных в облаке Timeweb — без установки на сервер.</p>
+          <form id="db-create-form" class="form-grid">
+            <label>Имя кластера<input name="name" required placeholder="my-db"></label>
+            <label>Тип СУБД
+              <select name="type"><option>mysql</option><option>postgresql</option><option>redis</option><option>mongodb</option></select>
+            </label>
+            <label>Логин админа<input name="admin_login" value="admin"></label>
+            <label>Пароль админа (пусто — сгенерируем)<input name="admin_password" placeholder="автоматически"></label>
+            <label>Тариф (ID или auto)<input name="preset" value="auto"></label>
+            <label>Имя базы (инстанс)<input name="instance_name" placeholder="= имени кластера"></label>
+            <label class="check"><input type="checkbox" name="wait" checked> Дождаться готовности</label>
+            <button type="submit" class="btn primary">Создать (платно)</button>
+          </form>
+        </div>
+        <div class="card">
+          <h3>Кластеры</h3>
+          <div class="table-wrap"><table id="dbs-table"></table></div>
+        </div>
+      </section>
+
+      <!-- ДОМЕНЫ И DNS -->
+      <section id="view-domains" class="view">
+        <div class="page-head"><h2>Домены и DNS</h2><button class="btn ghost" id="btn-domains-refresh">↻ Обновить</button></div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Домены на аккаунте</h3>
+            <div id="domain-chips" class="chips"></div>
+            <p class="muted">Выберите домен, чтобы посмотреть его DNS-записи.</p>
+          </div>
+          <div class="card">
+            <h3>DNS-записи: <span id="dns-domain-name">—</span></h3>
+            <form id="dns-add-form" class="form-grid">
+              <label>Домен или поддомен<input name="fqdn" required placeholder="www.example.ru"></label>
+              <label>Тип
+                <select name="type"><option>A</option><option>AAAA</option><option>CNAME</option><option>TXT</option><option>MX</option><option>NS</option><option>SRV</option><option>CAA</option></select>
+              </label>
+              <label>Значение<input name="value" required placeholder="IP, имя хоста, текст…"></label>
+              <label>TTL (сек)<input name="ttl" type="number" value="3600"></label>
+              <button type="submit" class="btn primary">Добавить запись</button>
+            </form>
+            <div class="table-wrap"><table id="dns-table"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ПРИЛОЖЕНИЯ -->
+      <section id="view-apps" class="view">
+        <div class="page-head"><h2>Приложения (PaaS)</h2><button class="btn ghost" id="btn-apps-refresh">↻ Обновить</button></div>
+        <div class="card">
+          <p class="muted">Приложения Timeweb разворачиваются из git-репозитория (GitHub и др.). Создание — через CLI:
+          <code>python -m timeweb_agent vcs connect …</code>, затем <code>python -m timeweb_agent apps create …</code> (см. README).</p>
+          <div class="table-wrap"><table id="apps-table"></table></div>
+        </div>
+      </section>
+
+      <!-- ДЕПЛОЙ -->
+      <section id="view-deploy" class="view">
+        <div class="page-head"><h2>Деплой на VPS по SSH</h2></div>
+        <div class="card">
+          <h3>Куда деплоим</h3>
+          <div class="form-grid">
+            <label>Сервер из панели (по имени)
+              <select id="deploy-server-select"><option value="">— выбрать сервер —</option></select>
+            </label>
+            <label>…или IP вручную (TW_SSH_HOST)<input id="deploy-host" placeholder="123.123.123.123"></label>
+            <label>SSH-пользователь (по умолч. из .env)<input id="deploy-user" placeholder="root"></label>
+            <label>SSH-порт<input id="deploy-port" type="number" placeholder="22"></label>
+            <label>SSH-пароль (если не в .env)<input id="deploy-password" type="password" placeholder="••••••"></label>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h3>🛠 Подготовка сервера</h3>
+            <p class="muted">Обновит пакеты и установит docker, nginx, fail2ban.</p>
+            <button class="btn primary" id="btn-provision">Подготовить сервер</button>
+          </div>
+          <div class="card">
+            <h3>🌐 Статический сайт</h3>
+            <p class="muted">nginx + Let's Encrypt. Папка с сайтом — на вашем диске.</p>
+            <form id="deploy-website-form" class="form-grid">
+              <label>Папка с сайтом<input name="path" required placeholder="C:\Users\You\site"></label>
+              <label>Домен<input name="domain" required placeholder="example.ru"></label>
+              <label>Почта для SSL<input name="ssl_email" placeholder="необязательно"></label>
+              <label class="check"><input type="checkbox" name="ssl" checked> SSL (Let's Encrypt)</label>
+              <button class="btn primary" type="submit">Развернуть сайт</button>
+            </form>
+          </div>
+          <div class="card">
+            <h3>🐳 Docker-приложение</h3>
+            <p class="muted">Папка с docker-compose.yml + nginx-прокси + SSL.</p>
+            <form id="deploy-docker-form" class="form-grid">
+              <label>Папка с docker-compose.yml<input name="path" required placeholder="C:\Users\You\app"></label>
+              <label>Домен<input name="domain" required placeholder="app.example.ru"></label>
+              <label>Порт приложения<input name="port" type="number" value="8000"></label>
+              <label class="check"><input type="checkbox" name="ssl" checked> SSL</label>
+              <button class="btn primary" type="submit">Развернуть</button>
+            </form>
+          </div>
+          <div class="card">
+            <h3>📥 Из git-репозитория</h3>
+            <p class="muted">Клонирует репозиторий на сервер и запустит compose.</p>
+            <form id="deploy-git-form" class="form-grid">
+              <label>URL репозитория<input name="repo" required placeholder="https://github.com/me/app.git"></label>
+              <label>Ветка<input name="branch" value="main"></label>
+              <label>Домен (для nginx+SSL)<input name="domain" placeholder="app.example.ru"></label>
+              <label>Порт<input name="port" type="number" value="8000"></label>
+              <button class="btn primary" type="submit">Развернуть</button>
+            </form>
+          </div>
+          <div class="card">
+            <h3>🗄 MySQL в docker</h3>
+            <p class="muted">База данных прямо на вашем сервере (альтернатива DBaaS).</p>
+            <form id="deploy-mysql-form" class="form-grid">
+              <label>Имя базы<input name="name" required placeholder="mydb"></label>
+              <label>Пользователь<input name="user" value="app"></label>
+              <label>Пароль (пусто — сгенерируем)<input name="password"></label>
+              <label>Порт<input name="port" type="number" value="3306"></label>
+              <button class="btn primary" type="submit">Запустить MySQL</button>
+            </form>
+          </div>
+        </div>
+        <div class="card"><h3>Результат</h3><pre class="out" id="deploy-out" hidden></pre></div>
+      </section>
+
+      <!-- SSH И ДИАГНОСТИКА -->
+      <section id="view-ssh" class="view">
+        <div class="page-head"><h2>SSH и диагностика</h2></div>
+        <div class="card highlight">
+          <h3>🩺 Диагностика для поддержки Timeweb</h3>
+          <p class="muted">Выполнит команды, которые просит поддержка: <code>nproc</code>, <code>free -h</code>, <code>df -h</code>, <code>fdisk -l</code> (+ бонус <code>lsblk</code>). Готовый отчёт можно скопировать одной кнопкой и отправить в тикет.</p>
+          <div class="form-grid">
+            <label>Сервер из панели (имя) или IP<input id="diag-server" placeholder="my-server или 123.123.123.123"></label>
+            <button class="btn primary" id="btn-diag">Запустить диагностику</button>
+            <button class="btn ghost" id="btn-diag-copy" disabled>📋 Скопировать весь отчёт</button>
+          </div>
+          <div id="diag-results"></div>
+        </div>
+        <div class="card">
+          <h3>💻 Команда по SSH</h3>
+          <div class="form-grid">
+            <label>Сервер из панели (имя) или IP<input id="ssh-server" placeholder="my-server или 123.123.123.123"></label>
+            <label>Команда<input id="ssh-command" placeholder="docker ps / uptime / systemctl status nginx"></label>
+            <button class="btn" id="btn-ssh-exec">Выполнить</button>
+          </div>
+          <div class="quick">
+            <button class="chip" data-cmd="uptime">uptime</button>
+            <button class="chip" data-cmd="nproc">nproc</button>
+            <button class="chip" data-cmd="free -h">free -h</button>
+            <button class="chip" data-cmd="df -h">df -h</button>
+            <button class="chip" data-cmd="fdisk -l">fdisk -l</button>
+            <button class="chip" data-cmd="docker ps">docker ps</button>
+            <button class="chip" data-cmd="systemctl status nginx">nginx status</button>
+          </div>
+          <pre class="terminal" id="ssh-out">Введите команду и нажмите «Выполнить».</pre>
+        </div>
+      </section>
+
+      <!-- НАСТРОЙКИ -->
+      <section id="view-settings" class="view">
+        <div class="page-head"><h2>Настройки</h2></div>
+        <div class="card">
+          <h3>Файлы .env</h3>
+          <p class="muted">Агент читает настройки из этих файлов (переменные окружения имеют приоритет):</p>
+          <ul id="env-files" class="mono"></ul>
+          <p class="muted">Создайте .env из шаблона: <code>copy timeweb_agent\.env.example .env</code> (Windows) или <code>cp timeweb_agent/.env.example .env</code> (Linux/macOS).</p>
+        </div>
+        <div class="card">
+          <h3>Текущие настройки</h3>
+          <div class="table-wrap"><table id="env-table"></table></div>
+          <p class="muted">Пароли и токены показываются маскированными. Чтобы что-то изменить — отредактируйте .env и перезапустите панель.</p>
+        </div>
+        <div class="card">
+          <h3>Где взять токен</h3>
+          <p class="muted">Панель Timeweb → раздел «API и Terraform» → «Создать токен»:
+          <a href="https://timeweb.cloud/my/api-keys" target="_blank" rel="noopener">timeweb.cloud/my/api-keys</a>.
+          Вставьте его в .env как <code>TIMEWEB_CLOUD_TOKEN=ваш_токен</code>.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toasts"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

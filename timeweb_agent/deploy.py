@@ -53,6 +53,46 @@ server {{
 }}
 """
 
+# Команды, которые просит выполнить поддержка Timeweb для проверки
+# конфигурации сервера (после смены тарифа / увеличения диска).
+SUPPORT_DIAG_COMMANDS = [
+    ("nproc", "Количество ядер процессора"),
+    ("free -h", "Оперативная память (смотрите строку Mem:)"),
+    ("df -h", "Смонтированные разделы и свободное место"),
+    ("fdisk -l", "Физический диск и разделы (нужны права root)"),
+    ("lsblk", "Дополнительно: дерево дисков и разделов"),
+]
+
+
+def run_support_diagnostics(ssh: SSHClient) -> list:
+    """Выполняет диагностические команды поддержки Timeweb.
+
+    Возвращает список: {command, description, exit_code, output, error}.
+    """
+    results = []
+    for command, description in SUPPORT_DIAG_COMMANDS:
+        code, out, err = ssh.exec(command, check=False, print_output=False)
+        if code != 0 and command.startswith("fdisk"):
+            # fdisk требует root; пробуем sudo без пароля
+            code2, out2, err2 = ssh.exec(f"sudo -n {command}", check=False, print_output=False)
+            if code2 == 0:
+                code, out, err = code2, out2, err2
+            else:
+                err = (
+                    f"{err}\n"
+                    f"[требуются права root — выполните на сервере вручную: sudo {command}]"
+                ).strip()
+        results.append(
+            {
+                "command": command,
+                "description": description,
+                "exit_code": code,
+                "output": (out or "").strip(),
+                "error": (err or "").strip(),
+            }
+        )
+    return results
+
 
 # ---------------------------------------------------------------------- #
 def provision(ssh: SSHClient, with_docker: bool = True, with_fail2ban: bool = True) -> None:

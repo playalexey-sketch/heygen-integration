@@ -507,8 +507,61 @@ def cmd_run(args: argparse.Namespace) -> None:
 
 
 # ---------------------------------------------------------------------- #
-#  Парсер
+#  Веб-панель агента
 # ---------------------------------------------------------------------- #
+def cmd_web(args: argparse.Namespace) -> None:
+    try:
+        from .webapp import app  # noqa: F401
+    except ImportError as e:  # pragma: no cover
+        raise SystemExit(
+            "Не удалось запустить веб-панель (Flask не установлен?):\n"
+            "  pip install -r timeweb_agent/requirements.txt"
+        ) from e
+    host = args.host or config.get("TW_WEB_HOST", "127.0.0.1")
+    port = int(args.port or config.get("TW_WEB_PORT", "8050") or 8050)
+    browser_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
+    url = f"http://{browser_host}:{port}"
+    if not args.no_browser and not config.get_bool("TW_WEB_NO_BROWSER"):
+        import threading
+        import webbrowser
+
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    print(f"Веб-панель агента: {url}   (Ctrl+C — остановить)", flush=True)
+    if not config.API_TOKEN:
+        print(
+            "⚠️  Токен не задан: заполните TIMEWEB_CLOUD_TOKEN в .env "
+            "(вкладка «Настройки» подскажет, где файл).",
+            flush=True,
+        )
+    app.run(host=host, port=port, debug=False, threaded=True)
+
+
+def cmd_diag(args: argparse.Namespace) -> None:
+    """Диагностика сервера для поддержки Timeweb (nproc, free -h, df -h, fdisk -l)."""
+    ssh = get_ssh(args)
+    with ssh:
+        results = deploy.run_support_diagnostics(ssh)
+    if args.json or config.JSON_OUTPUT:
+        emit(results, args)
+        return
+    print("Диагностика сервера (для поддержки Timeweb)\n", flush=True)
+    for r in results:
+        print(f"$ {r['command']}   ← {r['description']}", flush=True)
+        if r["error"]:
+            print(r["error"], flush=True)
+        print(r["output"] or "(пусто)", flush=True)
+        print()
+    print("----- Отчёт одним блоком (скопируйте в тикет) -----\n", flush=True)
+    for r in results:
+        print(f"$ {r['command']}", flush=True)
+        if r["output"]:
+            print(r["output"], flush=True)
+        if r["error"]:
+            print(r["error"], flush=True)
+        print()
+
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="twagent",
@@ -721,12 +774,25 @@ def build_parser() -> argparse.ArgumentParser:
     p7 = ps.add_parser("upload", help="загрузить файл/папку по SFTP"); add_ssh_args(p7)
     p7.add_argument("path"); p7.add_argument("remote"); p7.set_defaults(func=cmd_deploy)
 
+    # diag — команды поддержки
+    p = sub.add_parser("diag", help="диагностика сервера для поддержки (nproc, free -h, df -h, fdisk -l)")
+    add_ssh_args(p)
+    p.set_defaults(func=cmd_diag)
+
     # run
     p = sub.add_parser("run", help="выполнить план (runbook) из YAML-файла")
     add_common(p)
     p.add_argument("runbook", help="путь к YAML-плану")
     p.add_argument("--dry-run", action="store_true", help="только показать шаги")
     p.set_defaults(func=cmd_run)
+
+    # web — веб-панель
+    p = sub.add_parser("web", help="запустить веб-панель агента в браузере")
+    add_common(p)
+    p.add_argument("--host", help="по умолчанию TW_WEB_HOST или 127.0.0.1")
+    p.add_argument("--port", type=int, help="по умолчанию TW_WEB_PORT или 8050")
+    p.add_argument("--no-browser", action="store_true", help="не открывать браузер автоматически")
+    p.set_defaults(func=cmd_web)
 
     return parser
 
