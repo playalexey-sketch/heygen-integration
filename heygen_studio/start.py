@@ -52,6 +52,16 @@ def ensure_deps() -> None:
     sys.exit(1)
 
 
+def free_port(start: int, span: int = 40) -> int:
+    """Первый свободный порт начиная с указанного."""
+    import socket
+    for p in range(start, start + span):
+        with socket.socket() as s:
+            if s.connect_ex(("127.0.0.1", p)) != 0:
+                return p
+    return start
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="HeyGen Студия")
     ap.add_argument("--port", type=int, default=int(os.getenv("STUDIO_PORT", "8300")))
@@ -64,16 +74,13 @@ def main() -> None:
     ensure_deps()
     import uvicorn
 
+    # если порт занят другой программой — молча берём следующий свободный
+    wanted = args.port
+    args.port = free_port(args.port)
+    if args.port != wanted:
+        print(f"Порт {wanted} занят, использую {args.port}.")
+
     if args.test:
-        import socket
-
-        def free_port(start: int) -> int:
-            for p in range(start, start + 40):
-                with socket.socket() as s:
-                    if s.connect_ex(("127.0.0.1", p)) != 0:
-                        return p
-            return start
-
         mock_port = free_port(8765)
         os.environ["HEYGEN_BASE_URL"] = f"http://127.0.0.1:{mock_port}"
         os.environ.setdefault("HEYGEN_API_KEY", "test_key")
