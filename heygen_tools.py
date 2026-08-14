@@ -205,11 +205,11 @@ def heygen_create_photo_video(
     voice_used = ""
     final_voice_id = voice_id or ""
 
-    if audio_asset_id or audio_url:
+    if audio_asset_id or audio_url or audio_path:
         # Audio-driven: lip-sync the uploaded audio directly.
         final_audio_asset_id = audio_asset_id
         final_audio_url = audio_url
-        if audio_path:
+        if audio_path and not final_audio_asset_id:
             asset = client.upload_asset(audio_path)
             final_audio_asset_id = asset.asset_id
         result["voice_mode"] = "audio"
