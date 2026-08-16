@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Матвей Барцев — полный разбор Reels и контент-сценарии</title>
+  <style>
+    :root {
+      --ink: #16251f;
+      --muted: #607069;
+      --paper: #f6f3ea;
+      --card: #fffef9;
+      --forest: #173f35;
+      --forest-2: #285f50;
+      --gold: #c5903c;
+      --gold-soft: #f1e3c5;
+      --sage: #dfe9e2;
+      --line: #d9ddd7;
+      --danger: #8d3e32;
+      --danger-soft: #f8e7e2;
+      --shadow: 0 12px 30px rgba(23, 63, 53, .08);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(197,144,60,.13), transparent 26rem),
+        linear-gradient(180deg, #f8f5ed 0%, var(--paper) 100%);
+      font: 16px/1.62 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--forest-2); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: var(--gold); }
+    .layout { max-width: 1440px; margin: 0 auto; display: grid; grid-template-columns: 270px minmax(0, 1fr); }
+    aside {
+      position: sticky; top: 0; height: 100vh; padding: 26px 18px 24px;
+      border-right: 1px solid rgba(23,63,53,.12); background: rgba(246,243,234,.88); backdrop-filter: blur(14px);
+      overflow-y: auto;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; margin: 0 8px 24px; }
+    .brand-mark { width: 40px; height: 40px; border-radius: 50%; background: var(--forest); color: #fff; display: grid; place-items: center; font-weight: 800; box-shadow: inset 0 0 0 5px rgba(255,255,255,.12); }
+    .brand b { display: block; font-size: 14px; letter-spacing: .02em; }
+    .brand span { color: var(--muted); font-size: 12px; }
+    nav h3 { margin: 22px 10px 8px; color: var(--gold); font-size: 11px; text-transform: uppercase; letter-spacing: .14em; }
+    nav a { display: block; padding: 7px 10px; color: #40534b; font-size: 13px; text-decoration: none; border-radius: 9px; }
+    nav a:hover { background: var(--sage); color: var(--forest); }
+    .aside-note { margin: 25px 8px 0; padding: 13px; border-radius: 12px; color: var(--muted); background: #fff9ec; border: 1px solid #ead9b5; font-size: 12px; }
+    main { min-width: 0; padding: 42px clamp(24px, 5vw, 76px) 90px; }
+    .hero { position: relative; overflow: hidden; padding: clamp(28px, 5vw, 60px); border-radius: 28px; color: #fff; background: linear-gradient(135deg, #102f28 0%, #1d5547 62%, #94702e 150%); box-shadow: 0 24px 60px rgba(23,63,53,.2); }
+    .hero::after { content: ""; position: absolute; width: 420px; height: 420px; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; right: -190px; top: -180px; box-shadow: 0 0 0 48px rgba(255,255,255,.025), 0 0 0 96px rgba(255,255,255,.018); }
+    .eyebrow { position: relative; z-index: 1; color: #f1d7a3; font-size: 12px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+    h1 { position: relative; z-index: 1; max-width: 920px; margin: 13px 0 18px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(38px, 6vw, 72px); line-height: .98; letter-spacing: -.035em; }
+    .hero p { position: relative; z-index: 1; max-width: 780px; margin: 0; color: rgba(255,255,255,.82); font-size: clamp(16px, 2vw, 20px); }
+    .hero-meta { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 9px; margin-top: 27px; }
+    .pill { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; background: rgba(255,255,255,.08); color: #fff; font-size: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin: 22px 0 48px; }
+    .stat { padding: 21px; background: var(--card); border: 1px solid rgba(23,63,53,.1); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .stat strong { display: block; color: var(--forest); font-family: Georgia, serif; font-size: 30px; line-height: 1; }
+    .stat span { display: block; margin-top: 9px; color: var(--muted); font-size: 12px; }
+    section { scroll-margin-top: 26px; margin-top: 64px; }
+    .section-kicker { color: var(--gold); font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    h2 { margin: 8px 0 19px; color: var(--forest); font-family: Georgia, "Times New Roman", serif; font-size: clamp(30px, 4vw, 48px); line-height: 1.08; letter-spacing: -.025em; }
+    h3 { margin: 30px 0 12px; color: var(--forest); font-size: 22px; line-height: 1.25; }
+    h4 { margin: 23px 0 8px; color: #29483f; font-size: 16px; }
+    p { margin: 0 0 14px; }
+    .lead { max-width: 920px; color: #40534b; font-size: 19px; }
+    .card { padding: clamp(20px, 3vw, 34px); background: var(--card); border: 1px solid rgba(23,63,53,.11); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .card + .card { margin-top: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+    .callout { margin: 22px 0; padding: 20px 22px; border-left: 4px solid var(--gold); border-radius: 0 14px 14px 0; background: #fff8e9; }
+    .callout strong { color: var(--forest); }
+    .warning { border-left-color: var(--danger); background: var(--danger-soft); }
+    .formula { padding: 28px; border-radius: 17px; background: var(--forest); color: #fff; font: 700 clamp(18px,2.5vw,27px)/1.4 Georgia, serif; text-align: center; }
+    .formula span { color: #f4dcae; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; overflow: hidden; background: var(--card); border: 1px solid var(--line); border-radius: 14px; font-size: 14px; }
+    th, td { padding: 13px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { color: #fff; background: var(--forest); font-size: 12px; letter-spacing: .025em; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:nth-child(even) td { background: #faf9f4; }
+    .table-wrap { overflow-x: auto; border-radius: 14px; }
+    .metric { display: grid; grid-template-columns: 125px 1fr 82px; gap: 12px; align-items: center; margin: 13px 0; font-size: 13px; }
+    .bar { height: 11px; overflow: hidden; background: var(--sage); border-radius: 99px; }
+    .bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,var(--gold),#e0b76c); }
+    .metric b { text-align: right; color: var(--forest); }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; background: var(--sage); color: var(--forest); font-size: 11px; font-weight: 800; }
+    .badge.gold { background: var(--gold-soft); color: #74551f; }
+    .badge.red { background: var(--danger-soft); color: var(--danger); }
+    ul, ol { padding-left: 21px; }
+    li { margin: 6px 0; }
+    .reel-head { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: start; }
+    .reel-head .number { min-width: 74px; height: 74px; display: grid; place-items: center; border-radius: 22px; color: #fff; background: var(--forest); font: 700 31px Georgia,serif; }
+    .micro { color: var(--muted); font-size: 12px; }
+    .signal { padding: 15px; border-radius: 12px; background: #f0f5f1; border: 1px solid #d5e1d8; }
+    .signal b { color: var(--forest); }
+    .script { margin-top: 28px; border: 2px solid var(--forest); border-radius: 20px; overflow: hidden; background: var(--card); box-shadow: var(--shadow); }
+    .script-top { padding: 26px 28px; color: #fff; background: linear-gradient(110deg,var(--forest),var(--forest-2)); }
+    .script-top h3 { margin: 5px 0 8px; color: #fff; font: 700 29px/1.13 Georgia,serif; }
+    .script-top p { color: rgba(255,255,255,.78); }
+    .script-body { padding: clamp(20px, 3vw, 34px); }
+    .timeline td:first-child { white-space: nowrap; color: var(--gold); font-weight: 800; }
+    .spoken { font-size: 15px; font-weight: 650; color: #203c33; }
+    .overlay { display: inline-block; padding: 3px 7px; margin: 2px 0; border-radius: 6px; background: #efe8d8; color: #664e25; font-size: 12px; font-weight: 750; }
+    .hook-list { counter-reset: hooks; list-style: none; padding: 0; }
+    .hook-list li { position: relative; padding: 12px 14px 12px 45px; background: #f4f6f3; border-radius: 10px; }
+    .hook-list li::before { counter-increment: hooks; content: counter(hooks); position: absolute; left: 13px; top: 12px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--gold); font-size: 11px; font-weight: 800; }
+    .checklist { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px 18px; padding: 0; list-style: none; }
+    .checklist li { position: relative; padding-left: 25px; }
+    .checklist li::before { content: "✓"; position: absolute; left: 0; color: var(--forest-2); font-weight: 900; }
+    .caption { padding: 18px; white-space: pre-line; border-radius: 12px; background: #f4f1e8; border: 1px dashed #cdbf9f; font-size: 14px; }
+    .part-divider { margin-top: 82px; padding: 34px; border-radius: 24px; color: #fff; background: var(--forest); }
+    .part-divider h2 { margin: 6px 0 12px; color: #fff; }
+    .part-divider p { max-width: 880px; color: rgba(255,255,255,.78); }
+    .source-list { font-size: 13px; color: var(--muted); }
+    .source-list li { margin: 8px 0; }
+    footer { margin-top: 74px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    .no-break { break-inside: avoid; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { display: none; }
+      main { padding: 22px 18px 70px; }
+      .stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .grid-3 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .hero { border-radius: 20px; }
+      .grid-2, .checklist { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: 1fr 1fr; gap: 9px; }
+      .stat { padding: 15px; }
+      .stat strong { font-size: 24px; }
+      .reel-head { grid-template-columns: 1fr; }
+      .reel-head .number { width: 58px; min-width: 58px; height: 58px; border-radius: 16px; }
+      th,td { padding: 10px; }
+      .metric { grid-template-columns: 96px 1fr 66px; }
+    }
+    @media print {
+      body { background: #fff; font-size: 11pt; }
+      aside { display: none; }
+      .layout { display: block; max-width: none; }
+      main { padding: 0; }
+      .hero { box-shadow: none; print-color-adjust: exact; }
+      .card, .script { box-shadow: none; }
+      a { color: inherit; }
+      section { margin-top: 34px; }
+      .script, .card, table { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="brand"><div class="brand-mark">R</div><div><b>REELS INTELLIGENCE</b><span>Конкурентный разбор</span></div></div>
+    <nav>
+      <h3>Часть I · Конкурент</h3>
+      <a href="#summary">Резюме</a>
+      <a href="#method">Методика и ограничения</a>
+      <a href="#leaderboard">Рейтинг хитов</a>
+      <a href="#hit-1">Хит №1 · Отношения</a>
+      <a href="#hit-2">Хит №2 · Семья</a>
+      <a href="#hit-3">Хит №3 · Деньги</a>
+      <a href="#current">Спринт августа 2026</a>
+      <a href="#system">Система роста</a>
+      <a href="#elements">Вирусные элементы</a>
+      <a href="#risks">Слабые места и риски</a>
+      <h3>Часть II · Ваш контент</h3>
+      <a href="#creative-rules">Правила адаптации</a>
+      <a href="#script-1">Сценарий №1</a>
+      <a href="#script-2">Сценарий №2</a>
+      <a href="#script-3">Сценарий №3</a>
+      <a href="#production">Продакшен-плейбук</a>
+      <a href="#calendar">План публикации</a>
+      <a href="#measurement">Система оценки</a>
+      <a href="#sources">Источники</a>
+    </nav>
+    <div class="aside-note"><b>Срез:</b> 16.08.2026<br>Точные просмотры, удержание, репосты и сохранения конкурента не доступны без его Insights. В отчёте лайки не называются просмотрами.</div>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <div class="eyebrow">Конкурентная аналитика · Reels · Clean-room adaptation</div>
+      <h1>Секрет роста Матвея Барцева и готовые сценарии для вашего контента</h1>
+      <p>Полный разбор сильнейших Reels профиля @bartsevmatvei: что именно сработало, где органическая вирусность, где есть вопросы к качеству активности — и как перенести механику в оригинальные ролики без копирования формулировок.</p>
+      <div class="hero-meta">
+        <span class="pill">Профиль: ~72K подписчиков</span>
+        <span class="pill">149 публикаций</span>
+        <span class="pill">3 доступных Reels &gt; 5K лайков</span>
+        <span class="pill">3 сценария «под ключ»</span>
+      </div>
+    </header>
+
+    <div class="stats" aria-label="Ключевые показатели">
+      <div class="stat"><strong>57 570</strong><span>лайков у сильнейшего доступного Reel</span></div>
+      <div class="stat"><strong>682</strong><span>комментария у лидера</span></div>
+      <div class="stat"><strong>29–79 с</strong><span>длительность трёх закреплённых хитов</span></div>
+      <div class="stat"><strong>3</strong><span>Reels выше порога 5 000 лайков в доступной выборке</span></div>
+    </div>
+
+    <section id="summary">
+      <div class="section-kicker">01 · Executive summary</div>
+      <h2>Главный вывод</h2>
+      <p class="lead">Матвей Барцев вырос не на сложной шаманской терминологии. Его сильнейший вход — массовые боли: отношения, деньги, дети, родители, обида, предназначение. Шаманизм работает как редкий авторский архетип и мост к продукту.</p>
+      <div class="formula"><span>Массовая боль</span> → категоричный переворот → конфликт идентичностей → афоризм → редкое авторское решение</div>
+      <div class="grid-2" style="margin-top:16px">
+        <div class="card">
+          <h3>Что приносит охват</h3>
+          <ul>
+            <li>Отношения мужчины и женщины.</li>
+            <li>Бедность, скромность и право хотеть больше.</li>
+            <li>Поведение ребёнка как сигнал семейной системы.</li>
+            <li>Тезисы, которые хочется отправить партнёру.</li>
+            <li>Моральная полярность: зритель либо согласен, либо спорит.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Что превращает охват в бизнес</h3>
+          <ul>
+            <li>Необычный и запоминающийся статус «современного шамана».</li>
+            <li>Закреплённые хиты как доказательство популярности.</li>
+            <li>Переход в Telegram, YouTube и на сайт.</li>
+            <li>Лестница услуг от группового формата до глубинной консультации.</li>
+            <li>Одна картина мира во всех каналах.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout warning"><strong>Критическое наблюдение:</strong> текущая серия августа 2026 года пока не повторила старую вирусность. У части новых роликов необычно высокая доля комментариев и повторяются комментаторы. Это может быть активное ядро, посев или организованная стартовая активность; это не доказательство накрутки, но комментарии нельзя считать полностью независимым органическим спросом.</div>
+    </section>
+
+    <section id="method">
+      <div class="section-kicker">02 · Data quality</div>
+      <h2>Методика и границы анализа</h2>
+      <div class="grid-2">
+        <div class="card">
+          <span class="badge">Подтверждено</span>
+          <h3>Что видно публично</h3>
+          <ul>
+            <li>Около 72 тыс. подписчиков, 149 публикаций, 0 подписок.</li>
+            <li>Три закреплённых Reels.</li>
+            <li>Даты, длительности, лайки и комментарии.</li>
+            <li>Содержание открытых комментариев.</li>
+            <li>Публичная воронка: Instagram → Telegram/сайт → услуги.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="badge gold">Ограничение</span>
+          <h3>Чего нет во внешней выгрузке</h3>
+          <ul>
+            <li>Точных просмотров старых Reels.</li>
+            <li>Удержания и повторных просмотров.</li>
+            <li>Сохранений, отправок и переходов в профиль.</li>
+            <li>Источников трафика и числа подписок с ролика.</li>
+            <li>Полной пагинации исторического архива.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout"><strong>Что значит «все Reels выше 5 000 лайков» в этом отчёте:</strong> в доступной публичной витрине обнаружены три таких ролика — все три автор закрепил. В недоступной для внешней пагинации части архива теоретически могут быть дополнительные ролики. Сценарии ниже покрывают все три подтверждённых Reel выше порога, не выдавая неполный архив за данные Insights.</div>
+    </section>
+
+    <section id="leaderboard">
+      <div class="section-kicker">03 · Winners</div>
+      <h2>Рейтинг подтверждённых хитов</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Reel</th><th>Дата</th><th>Длина</th><th>Лайки</th><th>Комментарии</th><th>Ключевая тема</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><a href="https://www.instagram.com/reel/C3NTe1QscHJ/">C3NTe1QscHJ</a></td><td>11.02.2024</td><td>63 с</td><td><b>57 570</b></td><td>682</td><td>Мужчина поднимает или опускает женщину; состояние партнёрши как зеркало отношений</td></tr>
+            <tr><td>2</td><td><a href="https://www.instagram.com/reel/DAai5N5Mn6v/">DAai5N5Mn6v</a></td><td>27.09.2024</td><td>79 с</td><td><b>44 749</b></td><td>235</td><td>Выбор партнёра, семейный сценарий, влияние взрослых на женщину и детей</td></tr>
+            <tr><td>3</td><td><a href="https://www.instagram.com/reel/C1p5p3lsWeh/">C1p5p3lsWeh</a></td><td>03.01.2024</td><td>29 с</td><td><b>30 342</b></td><td>384</td><td>Стеснение, скромность, бедность и право заявлять о своей ценности</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3>Сравнение масштаба</h3>
+        <div class="metric"><span>Отношения</span><div class="bar"><i style="width:100%"></i></div><b>57 570</b></div>
+        <div class="metric"><span>Семья</span><div class="bar"><i style="width:77.7%"></i></div><b>44 749</b></div>
+        <div class="metric"><span>Деньги</span><div class="bar"><i style="width:52.7%"></i></div><b>30 342</b></div>
+        <p class="micro">Лайки первого хита равны примерно 80% сегодняшней базы подписчиков, второго — 62%, третьего — 42%. Это не ER: число подписчиков в даты публикации неизвестно.</p>
+      </div>
+    </section>
+
+    <section id="hit-1">
+      <div class="section-kicker">04 · Deep dive</div>
+      <div class="card">
+        <div class="reel-head"><div><span class="badge gold">Закреплён первым</span><h2>Хит №1: состояние женщины как оценка мужчины</h2><p class="lead"><a href="https://www.instagram.com/reel/C3NTe1QscHJ/">Открыть Reel</a> · 63 секунды · 57 570 лайков · 682 комментария</p></div><div class="number">01</div></div>
+        <h3>Восстановленный смысл</h3>
+        <p>Обсуждение последовательно цитирует идеи: «низкий мужчина толкает женщину вниз», человек более высокого уровня помогает ей раскрыться; мужчине приходят блага через отношение к женщине; «мужчина становится счастливым благо-даря женщине».</p>
+        <div class="grid-3">
+          <div class="signal"><b>Массовая боль</b><br>Каждая женщина может примерить тезис на нынешние или прошлые отношения.</div>
+          <div class="signal"><b>Пересылка</b><br>Ролик легко отправить мужу, партнёру или подруге без пояснений.</div>
+          <div class="signal"><b>Конфликт</b><br>Тезис выгоден одной стороне и провоцирует другую защищать свою позицию.</div>
+        </div>
+        <h3>Почему он залетел</h3>
+        <ol>
+          <li><b>Не требует веры в шаманизм.</b> Тема понятна широкой аудитории.</li>
+          <li><b>Даёт эмоциональное оправдание.</b> «Я изменилась не в вакууме; среда отношений имеет значение».</li>
+          <li><b>Оценивает личность, а не поступок.</b> Речь не о единичной ошибке, а о качестве мужчины.</li>
+          <li><b>Содержит афоризм.</b> Игра со словом «благо-даря» запоминается и цитируется.</li>
+          <li><b>Создаёт два лагеря.</b> Одни благодарят, другие спорят о переносе ответственности.</li>
+          <li><b>Долгоживущая тема.</b> Свежие комментарии появляются спустя годы, а закрепление поддерживает трафик.</li>
+        </ol>
+        <h3>Драматургия исходника</h3>
+        <p><span class="badge">Диагноз</span> → <span class="badge">два типа мужчины</span> → <span class="badge">высшая закономерность</span> → <span class="badge">афоризм</span> → <span class="badge red">спор</span></p>
+        <div class="callout"><strong>Секрет:</strong> не банальный совет «уважайте партнёршу», а моральная переоценка мужчины через состояние женщины рядом с ним. Это удар по идентичности — поэтому ролик сильнее обычной психологии отношений.</div>
+      </div>
+    </section>
+
+    <section id="hit-2">
+      <div class="card">
+        <div class="reel-head"><div><span class="badge gold">Закреплён вторым</span><h2>Хит №2: семейная система вместо поверхностного диагноза</h2><p class="lead"><a href="https://www.instagram.com/reel/DAai5N5Mn6v/">Открыть Reel</a> · 79 секунд · 44 749 лайков · 235 комментариев</p></div><div class="number">02</div></div>
+        <h3>Что можно подтвердить</h3>
+        <p>Внешняя текстовая расшифровка отсутствует. По обсуждению ролик затрагивает то, какими люди кажутся в начале отношений, доброту и заботу партнёра, фигуру отца/взрослого мужчины, детей около 5–7 лет и необходимость смотреть не только на поведение ребёнка, но и на семейную среду.</p>
+        <h3>Почему 79 секунд удержали аудиторию</h3>
+        <ul>
+          <li><b>Мини-кейс вместо лозунга.</b> Ситуация разворачивается: наблюдение → скрытая причина → смена фокуса → вывод.</li>
+          <li><b>Высокая ставка.</b> Речь идёт не о бытовой мелочи, а о выборе партнёра и судьбе детей.</li>
+          <li><b>Личная память.</b> Зритель вспоминает отца, партнёра, ребёнка или начало отношений.</li>
+          <li><b>«Подслушанный разговор».</b> Фрагмент большой беседы воспринимается менее рекламно, чем постановочный оффер.</li>
+          <li><b>Расширение роли автора.</b> Матвей предстаёт не только исполнителем обряда, но толкователем семейных причин.</li>
+        </ul>
+        <div class="callout"><strong>Секрет:</strong> зрителю показывают видимую проблему, а затем меняют объект анализа. Ребёнка или отдельный симптом перестают считать единственным источником проблемы — внимание переводится на взрослых и систему.</div>
+      </div>
+    </section>
+
+    <section id="hit-3">
+      <div class="card">
+        <div class="reel-head"><div><span class="badge gold">Закреплён третьим</span><h2>Хит №3: скромность превращается из добродетели в потолок дохода</h2><p class="lead"><a href="https://www.instagram.com/reel/C1p5p3lsWeh/">Открыть Reel</a> · 29 секунд · 30 342 лайка · 384 комментария</p></div><div class="number">03</div></div>
+        <h3>Восстановленный смысл</h3>
+        <p>Зрители обсуждают бедных и богатых, стеснительность, просьбу «на миллион», скромность как добродетель либо ограничение и право заявлять о себе. Привычно положительная установка объявляется одной из причин невидимости и низкого дохода.</p>
+        <div class="grid-3">
+          <div class="signal"><b>Переворот</b><br>«Будь скромнее» меняется на «из-за этого тебя не видят».</div>
+          <div class="signal"><b>Простая причина</b><br>Сложная финансовая проблема получает одно понятное объяснение.</div>
+          <div class="signal"><b>Короткий цикл</b><br>29 секунд удобны для повторного просмотра и пересылки.</div>
+        </div>
+        <h3>Почему он залетел</h3>
+        <ol>
+          <li>Деньги и самооценка понятны людям вне ниши.</li>
+          <li>Автор атакует убеждение, полученное в детстве.</li>
+          <li>Зритель одновременно получает надежду и неприятный диагноз.</li>
+          <li>Фраза легко сокращается до заголовка и пересказывается.</li>
+          <li>Спор возникает естественно: аудитория защищает скромность либо признаёт её маской страха.</li>
+        </ol>
+        <div class="callout"><strong>Секрет:</strong> ролик не учит финансовой грамотности. Он переопределяет моральное качество и связывает его с деньгами — двумя темами, которые обычно не соединяют напрямую.</div>
+      </div>
+    </section>
+
+    <section id="current">
+      <div class="section-kicker">05 · Current activity</div>
+      <h2>Спринт августа 2026 года</h2>
+      <p class="lead">С 31 июля по 15 августа опубликована плотная серия роликов длиной 31–112 секунд. Похоже на системную нарезку одной или нескольких длинных бесед.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Дата</th><th>Reel</th><th>Длина</th><th>Лайки</th><th>Комментарии</th><th>Комм./лайки</th><th>Тема по обсуждению</th></tr></thead>
+          <tbody>
+            <tr><td>31.07</td><td><a href="https://www.instagram.com/reel/DbdzupLRYia/">DbdzupLRYia</a></td><td>90 с</td><td>1 568</td><td>152</td><td>9,7%</td><td>Женская обида и мужская грубость</td></tr>
+            <tr><td>04.08</td><td><a href="https://www.instagram.com/reel/DboOky-JBLh/">DboOky-JBLh</a></td><td>112 с</td><td>832</td><td>47</td><td>5,6%</td><td>Проблемы взрослых и влияние на детей</td></tr>
+            <tr><td>07.08</td><td><a href="https://www.instagram.com/reel/Dbujm6pNjRm/">Dbujm6pNjRm</a></td><td>31 с</td><td>403</td><td>115</td><td><b>28,5%</b></td><td>Изменение оценки ситуации со временем</td></tr>
+            <tr><td>09.08</td><td><a href="https://www.instagram.com/reel/Db1IsxCtxmn/">Db1IsxCtxmn</a></td><td>73 с</td><td>475</td><td>119</td><td><b>25,1%</b></td><td>Женщина-шаман/удаган</td></tr>
+            <tr><td>11.08</td><td><a href="https://www.instagram.com/reel/Db5aRxateZ4/">Db5aRxateZ4</a></td><td>88 с</td><td>841</td><td>124</td><td><b>14,7%</b></td><td>Зачатие, беременность, «программа» ребёнка</td></tr>
+            <tr><td>12.08</td><td><a href="https://www.instagram.com/reel/Db8Pis3t_kw/">Db8Pis3t_kw</a></td><td>43 с</td><td>1 298</td><td>183</td><td><b>14,1%</b></td><td>Мотивационный/статусный тезис</td></tr>
+            <tr><td>14.08</td><td><a href="https://www.instagram.com/reel/DcBd8t2NFrm/">DcBd8t2NFrm</a></td><td>93 с</td><td>1 555</td><td>194</td><td><b>12,5%</b></td><td>Успех мужчины и женщина-вдохновительница</td></tr>
+            <tr><td>15.08</td><td><a href="https://www.instagram.com/reel/DcEzEOJpHTH/">DcEzEOJpHTH</a></td><td>33 с</td><td>90</td><td>2</td><td>2,2%</td><td>Мужчина трудится и радует женщину; прошло ~8 часов</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="grid-2" style="margin-top:16px">
+        <div class="card"><h3>Что он тестирует</h3><ul><li>Более высокую частоту.</li><li>Разные длительности из одной смысловой сессии.</li><li>Гендерную поляризацию.</li><li>Темы, в которых зритель защищает личный опыт.</li><li>Сочетание общих и нишевых тезисов.</li></ul></div>
+        <div class="card"><h3>Что пока не доказано</h3><ul><li>Новые ролики не достигли 5 000 лайков.</li><li>Нет публичных данных о подписках и продажах.</li><li>Комментарий не равен покупке или доверию.</li><li>Повторяющиеся общие комментарии могут быть стартовым посевом.</li><li>Старые хиты пока остаются главным активом.</li></ul></div>
+      </div>
+    </section>
+
+    <section id="system">
+      <div class="section-kicker">06 · Growth system</div>
+      <h2>Система роста за пределами одного Reel</h2>
+      <div class="grid-2">
+        <div class="card no-break"><h3>1. Массовый вход</h3><p>Отношения, деньги, дети, обида, усталость и предназначение дают рынок значительно шире аудитории шаманизма.</p></div>
+        <div class="card no-break"><h3>2. Редкий архетип</h3><p>Современная подача конфликтует с ожиданием архаичного шамана. Контраст помогает запоминанию.</p></div>
+        <div class="card no-break"><h3>3. Уникальная причина</h3><p>Обычная проблема связывается с родом, предками, энергетикой и мировоззрением.</p></div>
+        <div class="card no-break"><h3>4. Репакетирование</h3><p>Длинные YouTube-видео, встречи и ответы превращаются в Reels, Telegram-посты и анонсы.</p></div>
+        <div class="card no-break"><h3>5. Закрепление</h3><p>Старые вирусные ролики годами встречают каждого нового посетителя профиля.</p></div>
+        <div class="card no-break"><h3>6. Лестница продуктов</h3><p>На сайте: групповой формат 3–5 тыс. ₽, мини-консультация 5 тыс. ₽, глубинная — 20 тыс. ₽, индивидуальный обряд — 27 тыс. ₽.</p></div>
+      </div>
+      <div class="formula" style="margin-top:18px"><span>Обычная боль</span> → необычная причина → авторская картина мира → Telegram/сайт → услуга</div>
+    </section>
+
+    <section id="elements">
+      <div class="section-kicker">07 · Repeated patterns</div>
+      <h2>Повторяющиеся вирусные элементы</h2>
+      <div class="grid-3">
+        <div class="card"><h3>Бинарность</h3><p>Сильный/слабый, богатый/бедный, вверх/вниз, своя/чужая программа.</p></div>
+        <div class="card"><h3>Переворот морали</h3><p>Скромность становится ограничением; поведение ребёнка — сигналом взрослых.</p></div>
+        <div class="card"><h3>Угроза идентичности</h3><p>Не «вы ошиблись», а «каким человеком это вас делает?».</p></div>
+        <div class="card"><h3>Высокая ставка</h3><p>Счастье пары, деньги, дети, здоровье, предназначение, связь поколений.</p></div>
+        <div class="card"><h3>Одна причина</h3><p>Сложная проблема упаковывается в простую скрытую закономерность.</p></div>
+        <div class="card"><h3>Фраза-обложка</h3><p>Смысл сокращается до 3–7 слов и легко пересказывается.</p></div>
+      </div>
+      <h3>Контент-матрица конкурента</h3>
+      <div class="table-wrap"><table><thead><tr><th>Контур</th><th>Доля</th><th>Задача</th><th>Темы</th></tr></thead><tbody>
+        <tr><td>Массовый</td><td>50–60%</td><td>Охват</td><td>Отношения, деньги, дети, обида, усталость, предназначение</td></tr>
+        <tr><td>Мост к методу</td><td>25–35%</td><td>Объяснить систему</td><td>Родовые сценарии, предки, энергия, повторение программ</td></tr>
+        <tr><td>Нишевый</td><td>10–15%</td><td>Квалификация</td><td>Посвящение, обряды, традиции, кто может быть шаманом</td></tr>
+        <tr><td>Коммерческий</td><td>5–10%</td><td>Конверсия</td><td>Дата обряда, запись, консультация, групповой продукт</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section id="risks">
+      <div class="section-kicker">08 · Reality check</div>
+      <h2>Что работает слабее и что опасно копировать</h2>
+      <div class="grid-2">
+        <div class="card"><h3>Слабее</h3><ul><li>Прямые анонсы внешних YouTube-видео.</li><li>Узкая терминология без массовой боли.</li><li>Продажа услуги до формирования картины мира.</li><li>Длинное объяснение без конфликта в первой фразе.</li><li>Ожидание, что база 72K автоматически даст вирусность каждому посту.</li></ul></div>
+        <div class="card"><h3>Не копировать буквально</h3><ul><li>Гарантии «100% результата».</li><li>Медицинские причинные утверждения без оснований и оговорок.</li><li>Обвинение одного пола ради комментариев.</li><li>Шок-контент с обрядами как самоцель.</li><li>Организованный комментинг вместо реального удержания.</li></ul></div>
+      </div>
+      <div class="callout warning"><strong>Репутационный риск:</strong> поляризация увеличивает обсуждение, но тезисы о женщинах и мужчинах могут быть восприняты как оправдание грубости, перекладывание ответственности или обесценивание обстоятельств. В сценариях ниже сохранён конфликт, но убрано одностороннее обвинение.</div>
+    </section>
+
+    <div class="part-divider" id="creative-rules">
+      <div class="section-kicker" style="color:#f1d7a3">Часть II · Original content system</div>
+      <h2>Ваш контент на основе выигрышных механик</h2>
+      <p>Ниже — три оригинальных сценария, по одному на каждый подтверждённый Reel выше 5 000 лайков. Они сохраняют смысловой двигатель, длительность, конфликт, эмоциональные триггеры и роль в воронке, но не копируют исходные фразы и не выдают предположения за дословную расшифровку.</p>
+    </div>
+
+    <section>
+      <div class="grid-2">
+        <div class="card"><h3>Что сохраняем</h3><ul><li>Массовую боль.</li><li>Полярность и неожиданный поворот.</li><li>Высокую ставку.</li><li>Афоризм в финале.</li><li>Повод переслать и обсудить.</li><li>Исходный диапазон длительности.</li></ul></div>
+        <div class="card"><h3>Что меняем</h3><ul><li>Формулировки и порядок аргументов.</li><li>Примеры и метафоры.</li><li>Одностороннее обвинение — на зрелую ответственность.</li><li>Обещания результата — на наблюдение и практический шаг.</li><li>Авторские фразы конкурента — на ваш собственный голос.</li></ul></div>
+      </div>
+      <div class="callout"><strong>Предполагаемое позиционирование сценариев:</strong> эксперт по теме рода, духовных практик, семейных сценариев, психологии или личной трансформации. Там, где указано «в моей практике», используйте фразу только если это соответствует вашему реальному опыту; иначе замените на «я часто наблюдаю».</div>
+    </section>
+
+    <section id="script-1">
+      <div class="script">
+        <div class="script-top">
+          <div class="eyebrow">На основе механики хита №1 · 57 570 лайков</div>
+          <h3>Сценарий №1 — «Любовь видно по вашему состоянию»</h3>
+          <p>Цель: охват и пересылки между партнёрами · Длина: 58–65 секунд · Формат: спокойный прямой монолог</p>
+        </div>
+        <div class="script-body">
+          <div class="grid-3">
+            <div class="signal"><b>Сохранённый элемент</b><br>Состояние человека как зеркало отношений.</div>
+            <div class="signal"><b>Конфликт</b><br>Любовь измеряется не обещаниями, а тем, кем вы становитесь рядом.</div>
+            <div class="signal"><b>Новая форма</b><br>Ответственность двусторонняя; без обвинения только мужчины.</div>
+          </div>
+
+          <h3>Обложка</h3>
+          <p><span class="overlay">ЛЮБОВЬ ВИДНО ПО СОСТОЯНИЮ</span></p>
+          <p class="micro">Альтернатива: «Рядом с кем вы исчезаете?»</p>
+
+          <h3>Покадровый сценарий</h3>
+          <div class="table-wrap"><table class="timeline">
+            <thead><tr><th>Время</th><th>Кадр и действие</th><th>Точный текст</th><th>Текст на экране / монтаж</th></tr></thead>
+            <tbody>
+              <tr><td>0–3 с</td><td>Крупный план. Сразу смотрите в объектив, без приветствия.</td><td class="spoken">«Хотите понять качество своих отношений? Не слушайте обещания. Посмотрите, кем вы становитесь рядом с человеком».</td><td><span class="overlay">КЕМ ВЫ СТАНОВИТЕСЬ РЯДОМ?</span><br>Резкий вход с первого слова.</td></tr>
+              <tr><td>3–12 с</td><td>Средний план, едва заметный наезд камеры.</td><td class="spoken">«Если вы всё чаще молчите, сомневаетесь в себе и боитесь лишний раз проявиться — это не похоже на пространство любви. Это похоже на пространство, где вы постепенно уменьшаетесь».</td><td>Выделять цветом: <b>молчите</b>, <b>сомневаетесь</b>, <b>уменьшаетесь</b>.</td></tr>
+              <tr><td>12–23 с</td><td>Смена угла на 10–15 градусов или jump cut.</td><td class="spoken">«Зрелый партнёр не обязан вас спасать. Но рядом с ним вам не нужно отказываться от голоса, достоинства и своих целей, чтобы сохранить связь».</td><td><span class="overlay">НЕ СПАСАЕТ — НЕ УМЕНЬШАЕТ</span></td></tr>
+              <tr><td>23–36 с</td><td>Возврат к крупному плану. Темп немного медленнее.</td><td class="spoken">«И это работает в обе стороны. Каждый день мы либо поддерживаем силу близкого человека, либо заставляем его тратить эту силу на защиту от нас».</td><td>Короткая пауза после «в обе стороны».</td></tr>
+              <tr><td>36–49 с</td><td>Открытый жест рукой, тон спокойный.</td><td class="spoken">«Поэтому главный вопрос не: “Кто в нашей паре главный?” Главный вопрос: “Какими людьми мы становимся благодаря этому союзу?”»</td><td>На экране последовательно два вопроса. Слово <b>какими</b> — золотым.</td></tr>
+              <tr><td>49–59 с</td><td>Статичный крупный план. Не спешить.</td><td class="spoken">«Сильные отношения не делают одного большим, а другого маленьким. Они возвращают силу обоим».</td><td><span class="overlay">СИЛА ВОЗВРАЩАЕТСЯ ОБОИМ</span></td></tr>
+              <tr><td>59–64 с</td><td>Лёгкий кивок, финальная пауза.</td><td class="spoken">«Сохраните и честно спросите себя: рядом с этим человеком я раскрываюсь — или исчезаю?»</td><td>CTA мелко снизу: «Сохранить · отправить партнёру».</td></tr>
+            </tbody>
+          </table></div>
+
+          <div class="grid-2" style="margin-top:18px">
+            <div>
+              <h3>Три A/B-хука</h3>
+              <ol class="hook-list">
+                <li>«Состояние человека рядом с вами — честнее любых слов о любви».</li>
+                <li>«Иногда отношения заканчиваются задолго до расставания: в тот момент, когда один человек перестаёт быть собой».</li>
+                <li>«Если ради любви вам приходится становиться меньше — это не та цена, которую нужно платить».</li>
+              </ol>
+            </div>
+            <div>
+              <h3>Эмоциональные триггеры</h3>
+              <ul class="checklist"><li>Самоузнавание</li><li>Пересылка партнёру</li><li>Страх потерять себя</li><li>Надежда на зрелый союз</li><li>Спор о взаимной ответственности</li><li>Афоризм для сохранения</li></ul>
+            </div>
+          </div>
+
+          <h3>Подпись к Reel</h3>
+          <div class="caption">Отношения видны не по красивым словам, а по изменениям, которые происходят с двумя людьми.
+
+Вы стали свободнее говорить? Вам легче развиваться? Вы чувствуете больше достоинства и внутренней опоры — или всё чаще оправдываетесь за само право быть собой?
+
+Это не приглашение обвинить партнёра. Это приглашение увидеть систему, которую вы создаёте вместе.
+
+Напишите одним словом: рядом с близким человеком вы больше раскрываетесь или сжимаетесь?</div>
+
+          <h3>Закреплённый комментарий</h3>
+          <div class="caption">Важно: зрелые отношения — это взаимная ответственность. Но «взаимная» не означает, что нужно терпеть унижение или насилие. Где для вас проходит граница между сложным периодом и отношениями, в которых вы теряете себя?</div>
+
+          <h3>Продакшен</h3>
+          <ul class="checklist"><li>Один спокойный фон</li><li>Камера на уровне глаз</li><li>Крупный план в первой секунде</li><li>Субтитры по 3–6 слов</li><li>Jump cut каждые 7–12 секунд</li><li>Без заставки и перечисления регалий</li><li>Фоновая музыка не громче −25 LUFS</li><li>Финальная пауза 0,5–0,8 секунды</li></ul>
+          <div class="callout"><strong>Почему это не копия:</strong> сохранена механика «состояние партнёра показывает качество союза», но убраны исходные формулировки, игра со словом «благо-даря» и односторонняя оценка мужчины. Новый центр — взаимное раскрытие и потеря себя.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="script-2">
+      <div class="script">
+        <div class="script-top">
+          <div class="eyebrow">На основе механики хита №2 · 44 749 лайков</div>
+          <h3>Сценарий №2 — «Не всегда нужно исправлять ребёнка»</h3>
+          <p>Цель: сохранения, длинные комментарии, доверие · Длина: 74–82 секунды · Формат: мини-разбор семейной ситуации</p>
+        </div>
+        <div class="script-body">
+          <div class="grid-3">
+            <div class="signal"><b>Сохранённый элемент</b><br>Смена объекта анализа: от ребёнка к взрослым и среде.</div>
+            <div class="signal"><b>Высокая ставка</b><br>Будущее ребёнка и повторение семейного сценария.</div>
+            <div class="signal"><b>Новая форма</b><br>Ответственность без вины; конкретный список наблюдений.</div>
+          </div>
+
+          <h3>Обложка</h3>
+          <p><span class="overlay">РЕБЁНОК ПОКАЗЫВАЕТ СИСТЕМУ</span></p>
+          <p class="micro">Альтернатива: «Кого на самом деле нужно менять?»</p>
+
+          <h3>Покадровый сценарий</h3>
+          <div class="table-wrap"><table class="timeline">
+            <thead><tr><th>Время</th><th>Кадр и действие</th><th>Точный текст</th><th>Текст на экране / монтаж</th></tr></thead>
+            <tbody>
+              <tr><td>0–4 с</td><td>Крупный план, серьёзный тон.</td><td class="spoken">«Если ребёнок внезапно стал “неуправляемым”, начинать нужно не с наказания ребёнка».</td><td><span class="overlay">НЕ НАЧИНАЙТЕ С НАКАЗАНИЯ</span></td></tr>
+              <tr><td>4–14 с</td><td>Средний план. Короткие перечисления.</td><td class="spoken">«Он спорит, замыкается, плохо спит, требует постоянного внимания — и взрослые сразу ищут способ сделать его удобнее».</td><td>Слова появляются по одному: «спорит / молчит / не спит / требует».</td></tr>
+              <tr><td>14–25 с</td><td>Наезд камеры на 5–7%.</td><td class="spoken">«Но ребёнок ещё не умеет сказать: “В доме слишком много напряжения. Я не понимаю правила. Я боюсь, что близкие снова поссорятся”».</td><td>Кавычки и фраза ребёнка крупнее основных субтитров.</td></tr>
+              <tr><td>25–38 с</td><td>Новый угол. Тон аналитический.</td><td class="spoken">«Поэтому поведение иногда становится его языком. Не потому, что он манипулятор. А потому, что другого языка для этой тревоги у него пока нет».</td><td><span class="overlay">ПОВЕДЕНИЕ = ЯЗЫК</span></td></tr>
+              <tr><td>38–53 с</td><td>Счёт на пальцах, три вопроса.</td><td class="spoken">«Прежде чем исправлять ребёнка, проверьте три вещи: как взрослые разговаривают друг с другом; одинаковы ли правила сегодня и завтра; и получает ли ребёнок внимание не только тогда, когда создаёт проблему».</td><td>1. Тон взрослых<br>2. Понятные правила<br>3. Внимание без кризиса</td></tr>
+              <tr><td>53–66 с</td><td>Крупный план. Снять обвинительный тон.</td><td class="spoken">«Это не про поиск виноватой матери или плохого отца. Ответственность — не то же самое, что вина. Ответственность означает: взрослые первыми меняют среду, которую сами создают».</td><td>Выделить: <b>ответственность ≠ вина</b>.</td></tr>
+              <tr><td>66–77 с</td><td>Статичный кадр, медленнее.</td><td class="spoken">«Мы часто повторяем то, что видели в собственных семьях. Но повторение — не судьба. Когда взрослые перестают выяснять отношения через ребёнка, ему больше не нужно кричать за всю систему».</td><td><span class="overlay">ПОВТОРЕНИЕ — НЕ СУДЬБА</span></td></tr>
+              <tr><td>77–82 с</td><td>Финальный прямой взгляд.</td><td class="spoken">«Сохраните этот список и начните не с вопроса “что с ним?”, а с вопроса “что происходит между нами?”»</td><td>CTA: «Сохранить список».</td></tr>
+            </tbody>
+          </table></div>
+
+          <div class="grid-2" style="margin-top:18px">
+            <div>
+              <h3>Три A/B-хука</h3>
+              <ol class="hook-list">
+                <li>«Иногда самый “трудный” человек в семье — единственный, кто честно показывает её напряжение».</li>
+                <li>«Ребёнок может выражать поведением то, о чём взрослые годами молчат».</li>
+                <li>«Прежде чем вести ребёнка на исправление, задайте три неудобных вопроса себе».</li>
+              </ol>
+            </div>
+            <div>
+              <h3>Механика удержания</h3>
+              <ul class="checklist"><li>Знакомая сцена</li><li>Неожиданная смена фокуса</li><li>Внутренний голос ребёнка</li><li>Список из трёх пунктов</li><li>Снятие вины</li><li>Родовой мост в финале</li></ul>
+            </div>
+          </div>
+
+          <h3>Подпись к Reel</h3>
+          <div class="caption">Поведение ребёнка нельзя объяснить одной причиной, а изменения сна, настроения или поведения важно обсуждать с профильным специалистом.
+
+Но семейную среду тоже стоит увидеть. Иногда ребёнку не нужен ещё один взрослый, который скажет, что с ним «что-то не так». Ему нужны предсказуемость, безопасный тон общения и внимание, которое не приходится добывать кризисом.
+
+Какой из трёх вопросов оказался для вас самым неудобным?</div>
+
+          <h3>Закреплённый комментарий</h3>
+          <div class="caption">Этот ролик не заменяет помощь педиатра или детского психолога и не утверждает, что любое поведение вызвано семьёй. Его задача — добавить к вопросу «что происходит с ребёнком?» ещё один: «какая среда сейчас окружает ребёнка?»</div>
+
+          <h3>Продакшен</h3>
+          <ul class="checklist"><li>Темп 125–140 слов/мин</li><li>Крупный план на хуке</li><li>Один визуальный список</li><li>Пауза перед «ответственность не вина»</li><li>Без драматичных кадров плачущих детей</li><li>Спокойная нейтральная музыка</li><li>Субтитры обязательно</li><li>Финал на неподвижной камере</li></ul>
+          <div class="callout"><strong>Почему это не копия:</strong> сохранён системный разворот от видимого поведения к среде взрослых, но создан новый кейс, новый чек-лист, новая этическая рамка и отдельная оговорка о профильной помощи.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="script-3">
+      <div class="script">
+        <div class="script-top">
+          <div class="eyebrow">На основе механики хита №3 · 30 342 лайка</div>
+          <h3>Сценарий №3 — «Молчание стоит денег»</h3>
+          <p>Цель: быстрый охват, повторные просмотры, отправки экспертам · Длина: 27–31 секунда · Формат: максимально плотный тезис</p>
+        </div>
+        <div class="script-body">
+          <div class="grid-3">
+            <div class="signal"><b>Сохранённый элемент</b><br>Переворот скромности из достоинства в ограничение.</div>
+            <div class="signal"><b>Массовая боль</b><br>Доход, цена, видимость и страх заявить о себе.</div>
+            <div class="signal"><b>Новая форма</b><br>Не «бедные против богатых», а ценность против невидимости.</div>
+          </div>
+
+          <h3>Обложка</h3>
+          <p><span class="overlay">МОЛЧАНИЕ СТОИТ ДЕНЕГ</span></p>
+          <p class="micro">Альтернатива: «Почему вас не выбирают?»</p>
+
+          <h3>Покадровый сценарий</h3>
+          <div class="table-wrap"><table class="timeline">
+            <thead><tr><th>Время</th><th>Кадр и действие</th><th>Точный текст</th><th>Текст на экране / монтаж</th></tr></thead>
+            <tbody>
+              <tr><td>0–3 с</td><td>Очень крупный план, быстрая первая фраза.</td><td class="spoken">«Низкий доход не всегда означает, что вам не хватает знаний».</td><td><span class="overlay">ДЕЛО НЕ ТОЛЬКО В ЗНАНИЯХ</span></td></tr>
+              <tr><td>3–9 с</td><td>Jump cut, средний план.</td><td class="spoken">«Иногда вы просто слишком тихо называете свою ценность — или вообще ждёте, что люди догадаются о ней сами».</td><td>Выделить: <b>слишком тихо</b>.</td></tr>
+              <tr><td>9–17 с</td><td>Лёгкий жест рукой.</td><td class="spoken">«Скромность — это не хвастаться. Но прятать результат, бояться назвать цену и молчать о своём предложении — это уже не скромность. Это невидимость».</td><td><span class="overlay">СКРОМНОСТЬ ≠ НЕВИДИМОСТЬ</span></td></tr>
+              <tr><td>17–25 с</td><td>Крупный план, темп немного замедлить.</td><td class="spoken">«Мир не обязан угадывать, что вы умеете. Пока вы молчите, выбирают того, кто смог объяснить свою ценность яснее».</td><td>Слово <b>яснее</b> — золотым.</td></tr>
+              <tr><td>25–30 с</td><td>Финальная пауза.</td><td class="spoken">«Молчание не делает вас достойнее. Оно делает вас незаметнее. Отправьте тому, кто давно боится назвать свою цену».</td><td><span class="overlay">НАЗОВИТЕ СВОЮ ЦЕНУ</span></td></tr>
+            </tbody>
+          </table></div>
+
+          <div class="grid-2" style="margin-top:18px">
+            <div>
+              <h3>Три A/B-хука</h3>
+              <ol class="hook-list">
+                <li>«Можно быть сильным специалистом и оставаться без денег по одной причине: никто не понял, что вы умеете».</li>
+                <li>«Скромность хороша до тех пор, пока вы не используете её вместо действия».</li>
+                <li>«Ваш доход может быть ниже не из-за рынка, а потому что вы до сих пор просите разрешения назвать свою цену».</li>
+              </ol>
+            </div>
+            <div>
+              <h3>Триггеры</h3>
+              <ul class="checklist"><li>Деньги</li><li>Стыд за цену</li><li>Переворот добродетели</li><li>Простая причина</li><li>Сравнение с конкурентом</li><li>Призыв переслать</li></ul>
+            </div>
+          </div>
+
+          <h3>Подпись к Reel</h3>
+          <div class="caption">Скромность и профессиональная невидимость — не одно и то же.
+
+Можно не хвастаться и при этом ясно говорить:
+— какую проблему вы решаете;
+— для кого работаете;
+— какой результат создаёте;
+— сколько стоит ваша работа.
+
+Какой разговор вам сейчас сложнее: рассказать о себе или назвать цену?</div>
+
+          <h3>Закреплённый комментарий</h3>
+          <div class="caption">Низкий доход не сводится к одной психологической причине: влияют рынок, условия, доступ к возможностям и множество других факторов. Здесь речь только о той части, которую можно проверить на себе: умею ли я ясно показывать ценность своей работы?</div>
+
+          <h3>Продакшен</h3>
+          <ul class="checklist"><li>130–155 слов/мин</li><li>3–4 jump cut</li><li>Без B-roll</li><li>Субтитры крупнее обычного</li><li>Обложка 3 слова</li><li>Контрастный свет</li><li>Музыка необязательна</li><li>Конец без затухания</li></ul>
+          <div class="callout"><strong>Почему это не копия:</strong> сохранён переворот «скромность может ограничивать доход», но убрано прямое деление людей на бедных и богатых, создана новая логика через профессиональную видимость и добавлена точная зона контроля.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="production">
+      <div class="section-kicker">09 · Production playbook</div>
+      <h2>Единый продакшен для серии</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Съёмочная установка</h3>
+          <ul class="checklist"><li>Вертикаль 9:16, 4K или 1080p</li><li>Камера на уровне глаз</li><li>Объектив 35–50 мм экв.</li><li>Лицо занимает 35–50% кадра</li><li>Мягкий ключевой свет под 45°</li><li>Фон на 1–2 ступени темнее лица</li><li>Петличка или направленный микрофон</li><li>Один образ на три ролика</li></ul>
+        </div>
+        <div class="card">
+          <h3>Монтажный стандарт</h3>
+          <ul class="checklist"><li>Первое слово в 0,0 секунды</li><li>Без логотипа и приветствия</li><li>Субтитр максимум две строки</li><li>3–6 слов в смысловом блоке</li><li>Акцентный цвет только для 1–2 слов</li><li>Смена крупности по смыслу</li><li>Не маскировать паузы полностью</li><li>Финал обрезать плотно</li></ul>
+        </div>
+      </div>
+      <h3>Система обложек</h3>
+      <div class="grid-3">
+        <div class="card"><span class="badge gold">Ролик 1</span><h3>Любовь видно по состоянию</h3><p>Портрет + 4–5 слов. Эмоция: спокойная серьёзность.</p></div>
+        <div class="card"><span class="badge gold">Ролик 2</span><h3>Ребёнок показывает систему</h3><p>Портрет + открытый жест. Не использовать фото плачущего ребёнка.</p></div>
+        <div class="card"><span class="badge gold">Ролик 3</span><h3>Молчание стоит денег</h3><p>Самый контрастный портрет и короткий заголовок.</p></div>
+      </div>
+      <div class="callout"><strong>Запись за одну сессию:</strong> сначала снимите все три главных дубля, затем отдельно запишите по три альтернативных хука. Это даст девять тестовых начал без пересъёмки основной части.</div>
+    </section>
+
+    <section id="calendar">
+      <div class="section-kicker">10 · Publishing plan</div>
+      <h2>План публикации и переупаковки на 14 дней</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>День</th><th>Контент</th><th>Цель</th><th>Действие после публикации</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Сценарий №3 «Молчание стоит денег»</td><td>Быстрый тест массового хука</td><td>Первые 45 минут отвечать только на содержательные комментарии</td></tr>
+          <tr><td>2</td><td>Stories: опрос «сложнее рассказать о себе / назвать цену»</td><td>Углубить тему</td><td>Собрать формулировки аудитории</td></tr>
+          <tr><td>4</td><td>Сценарий №1 «Любовь видно по состоянию»</td><td>Пересылки и профильные посещения</td><td>Закрепить комментарий с вопросом о границе</td></tr>
+          <tr><td>5</td><td>Stories: два противоположных ответа из комментариев</td><td>Продлить дискуссию</td><td>Не занимать агрессивно одну сторону</td></tr>
+          <tr><td>7</td><td>Сценарий №2 «Не всегда нужно исправлять ребёнка»</td><td>Сохранения и доверие</td><td>Добавить оговорку о специалистах в закреп</td></tr>
+          <tr><td>9</td><td>Короткая нарезка 18–22 с из ролика №2: три вопроса</td><td>Повторный охват</td><td>Новая обложка, не помечать как повтор</td></tr>
+          <tr><td>11</td><td>Альтернативный хук лучшего из трёх + та же основа</td><td>A/B-тест упаковки</td><td>Сравнить первые 3 секунды и удержание</td></tr>
+          <tr><td>14</td><td>Видео-ответ на самый содержательный комментарий</td><td>Создать сериальность</td><td>Сослаться на исходный Reel через ответ</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="measurement">
+      <div class="section-kicker">11 · Analytics</div>
+      <h2>Как определить победителя без самообмана</h2>
+      <p class="lead">Не сравнивайте только лайки. Для этих сценариев разные главные действия: деньги должны давать досмотры и пересылки, отношения — отправки и посещения профиля, семья — сохранения и содержательные комментарии.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Метрика</th><th>Зачем</th><th>Сигнал силы</th><th>Что делать при слабом результате</th></tr></thead>
+        <tbody>
+          <tr><td>Удержание 3 сек.</td><td>Проверяет хук</td><td>Ролик не теряет большую часть зрителей сразу</td><td>Переписать первую фразу, убрать вводные</td></tr>
+          <tr><td>Средний просмотр</td><td>Проверяет плотность</td><td>Короткий ролик пересматривают; длинный досматривают до вывода</td><td>Сократить повторы, перенести сильную мысль раньше</td></tr>
+          <tr><td>Отправки / охват</td><td>Главный вирусный сигнал</td><td>Зритель видит конкретного адресата</td><td>Сделать тезис менее общим и более адресным</td></tr>
+          <tr><td>Сохранения / охват</td><td>Ценность на будущее</td><td>Есть список, вопрос или формула</td><td>Добавить практический блок</td></tr>
+          <tr><td>Переходы в профиль</td><td>Интерес к автору</td><td>Тезис усиливает позиционирование</td><td>Уточнить уникальную авторскую рамку</td></tr>
+          <tr><td>Подписки с Reel</td><td>Качество охвата</td><td>Обещание профиля совпадает с роликом</td><td>Перепаковать bio и закреплённые публикации</td></tr>
+          <tr><td>Содержательные комментарии</td><td>Глубина реакции</td><td>Личные истории и аргументы, а не только эмодзи</td><td>Задать более точный вопрос в закрепе</td></tr>
+          <tr><td>Заявки / продажи</td><td>Бизнес-эффект</td><td>Люди называют проблему из ролика</td><td>Проверить мост от темы к продукту</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><strong>Правило теста:</strong> оценивать каждый ролик через одинаковые 7 суток, отдельно фиксируя органический и платный трафик. Победителя закреплять не только по охвату, а по сочетанию отправок, подписок и целевых диалогов.</div>
+    </section>
+
+    <section>
+      <div class="section-kicker">12 · Final formula</div>
+      <h2>Итог</h2>
+      <div class="grid-2">
+        <div class="card"><h3>Секрет Матвея</h3><p>Он сначала говорит о том, что уже болит у массовой аудитории, и только потом подводит её к шаманской картине причин и решению.</p></div>
+        <div class="card"><h3>Ваша безопасная адаптация</h3><p>Сохранить конфликт, узнавание и афоризм, но говорить собственным языком, добавлять зону ответственности и не обещать того, что невозможно доказать.</p></div>
+      </div>
+      <div class="formula" style="margin-top:18px"><span>Узнаваемая сцена</span> → неудобная новая причина → практический шаг → авторская фраза → обсуждение</div>
+    </section>
+
+    <section id="sources">
+      <div class="section-kicker">Sources</div>
+      <h2>Источники</h2>
+      <ol class="source-list">
+        <li><a href="https://www.instagram.com/bartsevmatvei/">Instagram-профиль @bartsevmatvei</a>.</li>
+        <li><a href="https://imginn.com/reels/bartsevmatvei/">Публичная витрина Reels</a>.</li>
+        <li><a href="https://imginn.com/p/C3NTe1QscHJ/">Метрики и обсуждение Reel C3NTe1QscHJ</a>.</li>
+        <li><a href="https://imginn.com/p/DAai5N5Mn6v/">Метрики и обсуждение Reel DAai5N5Mn6v</a>.</li>
+        <li><a href="https://imginn.com/p/C1p5p3lsWeh/">Метрики и обсуждение Reel C1p5p3lsWeh</a>.</li>
+        <li><a href="https://t.me/s/matvei_bar">Telegram-канал «Шаман БОО ХУН»</a>.</li>
+        <li><a href="http://shamanbarcevmatvei.tilda.ws/">Официальный сайт и продуктовая линейка</a>.</li>
+        <li><a href="https://baikal-journal.ru/2024/02/27/pover-mne-my-ochen-silno-voyuem-tolko-na-mentalno-duhovnom-urovne/">Публичный материал о позиционировании и образе</a>.</li>
+      </ol>
+      <div class="callout"><strong>Достоверность:</strong> метрики — моментальный публичный срез на 16 августа 2026 года. Сторонний просмотрщик не является официальной аналитикой Meta. Темы без доступной расшифровки обозначены как реконструкция по обсуждению. Сценарии во второй части — оригинальные материалы, а не дословные транскрипты конкурента.</div>
+    </section>
+
+    <footer>
+      Подготовлено для конкурентного анализа и разработки оригинального контента. Не является медицинской, психологической, юридической или финансовой консультацией. HTML оптимизирован для просмотра на телефоне, компьютере и печати в PDF.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
