@@ -1,0 +1,30 @@
+{
+  "lead_magnets": [
+    "01_01_relationships_self_check.pdf",
+    "02_02_family_system_indicator.pdf",
+    "03_03_visibility_and_price.pdf",
+    "04_04_conflict_repair.pdf",
+    "05_05_support_vs_control.pdf",
+    "06_06_decision_compass.pdf"
+  ],
+  "long_videos": [
+    "01_01_long_relationships.pdf",
+    "02_02_long_family.pdf",
+    "03_03_long_value.pdf",
+    "04_04_long_conflict.pdf",
+    "05_05_long_support.pdf",
+    "06_06_long_decisions.pdf"
+  ],
+  "shot_maps": "00_reels_9_frame_production_maps.pdf",
+  "master": "00_START_HERE.pdf",
+  "audio_and_teleprompter": [
+    "README_AUDIO.md",
+    "01_01_long_relationships_teleprompter.txt",
+    "02_02_long_family_teleprompter.txt",
+    "03_03_long_value_teleprompter.txt",
+    "04_04_long_conflict_teleprompter.txt",
+    "05_05_long_support_teleprompter.txt",
+    "06_06_long_decisions_teleprompter.txt"
+  ],
+  "audio_note": "Presenter-led A-roll: use the creator's own voice; teleprompter scripts and recording settings are included"
+}
