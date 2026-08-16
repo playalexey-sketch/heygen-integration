@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-08-16",
+  "components": [
+    {
+      "name": "Instaloader",
+      "repository": "https://github.com/instaloader/instaloader",
+      "commit": "5434692",
+      "release": "4.15.3",
+      "license": "MIT",
+      "verifiedRole": "Profile.get_reels() pagination and Reel metadata"
+    },
+    {
+      "name": "Reels Vault",
+      "repository": "https://github.com/Overusedhydra/reels-vault",
+      "commit": "959c120",
+      "license": "MIT",
+      "verifiedRole": "yt-dlp/Playwright download, FFmpeg audio, local Whisper transcript"
+    },
+    {
+      "name": "parth-dl",
+      "repository": "https://github.com/parthmax2/parth-dl",
+      "commit": "5cc1525",
+      "license": "MIT",
+      "verifiedRole": "Zero-dependency public Reel metadata/download fallback"
+    }
+  ]
+}
