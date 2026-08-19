@@ -150,6 +150,23 @@ def run() -> None:
             )
             print("удаление: OK")
 
+            # --- прокси: чтение/сохранение ---
+            p = client.get("/api/proxy").json()
+            assert p["proxy"] == "" and p["file_exists"] is False
+            r = client.post("/api/proxy", json={"proxy": "socks5://127.0.0.1:1"}).json()
+            # локально соединения нет: ok=False, но прокси сохранён
+            assert r["ok"] is False
+            assert client.get("/api/proxy").json()["proxy"] == "socks5://127.0.0.1:1"
+            # очистка
+            client.post("/api/proxy", json={"proxy": ""})
+            assert client.get("/api/proxy").json()["proxy"] == ""
+            print("прокси: OK")
+
+            # --- check_telegram с явно указанным прокси (локально — ошибка) ---
+            r = client.post("/api/check_telegram", json={"proxy": "socks5://127.0.0.1:1"}).json()
+            assert r["ok"] is False and r["error"]
+            print("check_telegram: OK")
+
             # --- logout ---
             assert client.post("/api/logout").status_code == 200
             assert client.get("/api/stages").status_code == 401

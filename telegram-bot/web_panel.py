@@ -16,9 +16,11 @@ from pathlib import Path
 from typing import Optional
 
 from aiogram import Bot
+from aiogram.client.session.aiohttp import AiohttpSession
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 
+from app_common import IPv4AiohttpSession, apply_proxy, load_proxy
 from sender import StageSequencer, run_test
 from services import AdminService
 from storage import CONTENT_LINK, CONTENT_NICKNAME, CONTENT_TEXT, CONTENT_TYPES, StageStorage
@@ -198,6 +200,52 @@ def create_app(
             raise HTTPException(404, "Этап не найден")
         return _stage_dict(storage.index_of(s) + 1, s)
 
+    # --- прокси / VPN (соединение с Telegram) ---
+
+    async def _check(proxy: str) -> dict:
+        """Проверка соединения с Telegram через указанный прокси (временная сессия)."""
+        session = AiohttpSession(proxy=proxy) if proxy else IPv4AiohttpSession()
+        tmp_bot = Bot(token=cfg.bot_token, session=session)
+        try:
+            me = await asyncio.wait_for(tmp_bot.me(), 15)
+            return {"ok": True, "bot": f"@{me.username}", "via": proxy or "прямое соединение"}
+        except Exception as e:
+            msg = f"{type(e).__name__}: {e}"
+            if "401" in msg or "Unauthorized" in msg:
+                msg = "Соединение есть, но BOT_TOKEN неверный (401 Unauthorized)"
+            return {"ok": False, "error": msg, "via": proxy or "прямое соединение"}
+        finally:
+            await session.close()
+
+    @app.get("/api/proxy")
+    async def get_proxy(request: Request):
+        _auth(request)
+        return {
+            "proxy": load_proxy(cfg),
+            "env_proxy": cfg.telegram_proxy,
+            "file_exists": cfg.proxy_path.exists(),
+        }
+
+    @app.post("/api/proxy")
+    async def set_proxy(request: Request):
+        _auth(request)
+        b = await request.json()
+        proxy = (b.get("proxy") or "").strip()
+        cfg.data_dir.mkdir(parents=True, exist_ok=True)
+        cfg.proxy_path.write_text(proxy + "\n", encoding="utf-8")
+        log.info("Прокси сохранён из панели: %r", proxy or "(прямое)")
+        apply_proxy(bot, proxy)  # тест-отправки админки сразу пойдут через новый прокси
+        result = await _check(proxy)
+        return result
+
+    @app.post("/api/check_telegram")
+    async def check_telegram(request: Request):
+        _auth(request)
+        b = await request.json()
+        raw = b.get("proxy")
+        proxy = load_proxy(cfg) if raw is None else (raw or "").strip()
+        return await _check(proxy)
+
     # --- тест ---
 
     @app.post("/api/test")
@@ -211,6 +259,7 @@ def create_app(
         if chat_id <= 0:
             raise HTTPException(400, "chat_id — числовой ID чата")
         live = bool(b.get("live", False))
+        apply_proxy(bot, load_proxy(cfg))
 
         if not live:
             # Быстрый тест — выполняем сразу и честно сообщаем результат,

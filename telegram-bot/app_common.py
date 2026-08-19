@@ -1,9 +1,12 @@
-"""Общее для двух процессов (bot.py и admin.py): конфиг, логи, сборка объектов."""
+"""Общее для двух процессов (bot.py и admin.py): конфиг, логи, прокси, сборка объектов."""
 from __future__ import annotations
 
 import logging
 import socket
+import ssl
 
+import certifi
+from aiohttp import TCPConnector
 from aiogram import Bot
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.exceptions import TelegramUnauthorizedError
@@ -28,6 +31,41 @@ class IPv4AiohttpSession(AiohttpSession):
         self._connector_init.setdefault("family", socket.AF_INET)
 
 
+def load_proxy(cfg: Config) -> str:
+    """Актуальный прокси: bot_data/proxy.txt (меняется из веб-панели) -> .env."""
+    try:
+        if cfg.proxy_path.exists():
+            return cfg.proxy_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        pass
+    return cfg.telegram_proxy
+
+
+def apply_proxy(bot: Bot, proxy: str) -> None:
+    """Применить прокси (или отключить его) к живой сессии бота."""
+    session = getattr(bot, "session", None)
+    if not isinstance(session, AiohttpSession):
+        return
+    try:
+        if proxy:
+            session.proxy = proxy  # aiogram сам пересоздаёт коннектор
+            log.info("Прокси для Telegram включён: %s", proxy)
+        elif session.proxy is not None:
+            # Возврат к прямому соединению (IPv4): восстанавливаем дефолтный коннектор.
+            session._connector_type = TCPConnector  # noqa: SLF001
+            session._connector_init = {  # noqa: SLF001
+                "ssl": ssl.create_default_context(cafile=certifi.where()),
+                "limit": 100,
+                "ttl_dns_cache": 3600,
+                "family": socket.AF_INET,
+            }
+            session._proxy = None  # noqa: SLF001
+            session._should_reset_connector = True  # noqa: SLF001
+            log.info("Прокси для Telegram отключён — прямое соединение")
+    except Exception:
+        log.exception("Не удалось применить прокси %r", proxy)
+
+
 def setup(cfg: Config, log_name: str = "bot.log") -> tuple[StageStorage, AdminService, StageSequencer, Bot]:
     """Логирование в файл + сборка общих объектов.
 
@@ -41,7 +79,18 @@ def setup(cfg: Config, log_name: str = "bot.log") -> tuple[StageStorage, AdminSe
     storage = StageStorage(cfg.stages_path)
     admin = AdminService(cfg.admin_ids)
     sequencer = StageSequencer(storage)
-    bot = Bot(token=cfg.bot_token, session=IPv4AiohttpSession())
+
+    proxy = load_proxy(cfg)
+    if proxy:
+        try:
+            session = AiohttpSession(proxy=proxy)
+        except ImportError:
+            log.error("Для socks5-прокси нужен пакет aiohttp-socks: pip install aiohttp-socks")
+            session = IPv4AiohttpSession()
+        log.info("Подключение к Telegram через прокси: %s", proxy)
+    else:
+        session = IPv4AiohttpSession()
+    bot = Bot(token=cfg.bot_token, session=session)
     return storage, admin, sequencer, bot
 
 

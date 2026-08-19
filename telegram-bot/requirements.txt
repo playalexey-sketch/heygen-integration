@@ -2,3 +2,4 @@ aiogram==3.30.0
 python-dotenv==1.2.3
 fastapi==0.141.1
 uvicorn==0.52.4
+aiohttp-socks==0.12.0

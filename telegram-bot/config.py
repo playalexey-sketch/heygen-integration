@@ -30,6 +30,7 @@ class Config:
     data_dir: Path = Path("bot_data")
     web_port: int = 8080
     web_password: str = ""
+    telegram_proxy: str = ""
 
     @property
     def stages_path(self) -> Path:
@@ -38,6 +39,10 @@ class Config:
     @property
     def password_path(self) -> Path:
         return self.data_dir / "admin_password.txt"
+
+    @property
+    def proxy_path(self) -> Path:
+        return self.data_dir / "proxy.txt"
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -55,4 +60,5 @@ class Config:
             data_dir=Path(os.getenv("DATA_DIR", "bot_data")).expanduser(),
             web_port=int(os.getenv("WEB_PORT", "8080") or 8080),
             web_password=os.getenv("ADMIN_PASSWORD", "").strip(),
+            telegram_proxy=os.getenv("TELEGRAM_PROXY", "").strip(),
         )

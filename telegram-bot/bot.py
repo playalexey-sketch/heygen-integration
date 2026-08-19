@@ -16,7 +16,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.exceptions import TelegramNetworkError
 
-from app_common import check_bot_online, setup
+from app_common import apply_proxy, check_bot_online, load_proxy, setup
 from config import Config
 from handlers.admin import router as admin_router
 from handlers.client import router as client_router
@@ -28,10 +28,15 @@ logging.basicConfig(
 log = logging.getLogger("bot")
 
 
-async def poll_forever(bot: Bot, dp: Dispatcher) -> None:
-    """Polling с переподключением: обрыв сети не убивает бота."""
+async def poll_forever(bot: Bot, dp: Dispatcher, cfg: Config) -> None:
+    """Polling с переподключением: обрыв сети не убивает бота.
+
+    Перед каждым циклом перечитываем прокси — изменения из веб-панели
+    (bot_data/proxy.txt) подхватываются без перезапуска, за ~15 секунд.
+    """
     while True:
         try:
+            apply_proxy(bot, load_proxy(cfg))
             # handle_signals=False: Ctrl+C обрабатывает run.bat (прерывает процесс).
             await dp.start_polling(bot, handle_signals=False)
             return  # polling остановлен штатно (shutdown)
@@ -55,7 +60,7 @@ async def main() -> None:
                     "кто пришлёт /admin. Веб-админка защищена паролем.")
 
     await check_bot_online(bot)
-    await poll_forever(bot, dp)
+    await poll_forever(bot, dp, cfg)
 
 
 if __name__ == "__main__":
