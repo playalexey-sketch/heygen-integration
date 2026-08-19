@@ -74,14 +74,26 @@ ADMIN_ID=ваш_числовой_id
 
 ### 3. Запустите
 
-**Вариант A — Docker (рекомендуется):**
+**Самый простой способ — один скрипт** (сам создаст окружение, поставит
+зависимости, создаст `.env` и запустит бота):
+
+```bash
+# Linux / macOS
+./run.sh
+
+# Windows
+run.bat
+```
+Первый запуск попросит вписать токен в `.env` — впишите и запустите скрипт ещё раз.
+
+**Вариант A — Docker (рекомендуется для сервера/24-7):**
 ```bash
 docker compose up -d --build
 ```
 Логи: `docker compose logs -f`
 Обновление после правок: `docker compose up -d --build`
 
-**Вариант B — Python 3.10+:**
+**Вариант B — Python 3.10+ (вручную):**
 ```bash
 python3 -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
@@ -122,6 +134,8 @@ telegram-bot/
 ├── tests/
 │   ├── smoke_test.py        # офлайн-тесты логики: python tests/smoke_test.py
 │   └── integration_test.py  # тест через настоящий Dispatcher: python tests/integration_test.py
+├── run.sh                # запуск одной командой (Linux/macOS)
+├── run.bat               # запуск одной командой (Windows)
 ├── requirements.txt
 ├── .env.example          # шаблон конфига (скопируйте в .env)
 ├── Dockerfile
@@ -155,6 +169,30 @@ docker compose up -d --build # обновить и запустить
 
 # Локально
 Ctrl+C в терминале
+```
+
+### Запуск 24/7 на Linux-сервере (systemd)
+
+Создайте `/etc/systemd/system/tg-stage-bot.service`:
+```ini
+[Unit]
+Description=Telegram stage bot
+After=network-online.target
+
+[Service]
+WorkingDirectory=/путь/к/telegram-bot
+ExecStart=/путь/к/telegram-bot/venv/bin/python main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+Далее:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now tg-stage-bot
+journalctl -u tg-stage-bot -f   # логи
 ```
 
 ## Частые вопросы
