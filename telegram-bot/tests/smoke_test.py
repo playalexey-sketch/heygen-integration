@@ -1,0 +1,465 @@
+"""Смоук-тесты без сети: хранилище, отправка этапов, секуэнсер, админ-мастер.
+
+Запуск:  python tests/smoke_test.py
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# ------------------------- фейки Telegram -------------------------
+
+
+class FakeUser:
+    def __init__(self, uid: int):
+        self.id = uid
+
+
+class FakeChat:
+    def __init__(self, cid: int, ctype: str = "private"):
+        self.id = cid
+        self.type = ctype
+
+
+class FakeBot:
+    def __init__(self, fail_document: bool = False):
+        self.sent: list[tuple] = []
+        self.fail_document = fail_document
+
+    async def send_message(self, chat_id, text, **kw):
+        self.sent.append(("message", chat_id, text, kw))
+        return "ok"
+
+    async def send_document(self, chat_id, document, caption=None, **kw):
+        if self.fail_document:
+            raise RuntimeError("document fetch failed")
+        self.sent.append(("document", chat_id, document, caption))
+        return "ok"
+
+
+class FakeMessage:
+    def __init__(self, bot: FakeBot, text, uid: int = 1, cid: int = 100, ctype="private"):
+        self.bot = bot
+        self.text = text
+        self.from_user = FakeUser(uid)
+        self.chat = FakeChat(cid, ctype)
+        self.answers: list[tuple] = []
+        self.edits: list[tuple] = []
+
+    async def answer(self, text, reply_markup=None):
+        self.answers.append((text, reply_markup))
+        return None
+
+    async def edit_text(self, text, reply_markup=None):
+        self.edits.append((text, reply_markup))
+        return None
+
+
+class FakeCallback:
+    def __init__(self, bot: FakeBot, data: str, uid: int = 1, cid: int = 100):
+        self.bot = bot
+        self.data = data
+        self.from_user = FakeUser(uid)
+        self.message = FakeMessage(bot, "stale text", uid=uid, cid=cid)
+        self.ack: tuple | None = None
+
+    async def answer(self, text=None, show_alert=False):
+        self.ack = (text, show_alert)
+
+
+class FakeState:
+    def __init__(self):
+        self.state = None
+        self.data: dict = {}
+
+    async def set_state(self, s):
+        self.state = s
+
+    async def get_state(self):
+        return self.state
+
+    async def get_data(self):
+        return dict(self.data)
+
+    async def update_data(self, **kw):
+        self.data.update(kw)
+
+    async def clear(self):
+        self.state = None
+        self.data = {}
+
+
+# ------------------------- тесты -------------------------
+
+
+def test_storage(tmp: Path):
+    from storage import StageStorage
+
+    p = tmp / "stages.json"
+    st = StageStorage(p)
+    assert len(st.all()) == 2, "после первого запуска должны появиться 2 стандартных этапа"
+    assert st.ordered()[0].content_type == "text"
+
+    s = st.add(10, "link", "https://disk.yandex.ru/abc")
+    assert len(st.all()) == 3
+    assert s.id == 3
+
+    st.update(s.id, delay_seconds=20, content="https://example.com/a.pdf", enabled=False)
+    reloaded = StageStorage(p)  # пересоздали из файла — данные должны сохраниться
+    s2 = reloaded.get(s.id)
+    assert s2.delay_seconds == 20 and s2.content == "https://example.com/a.pdf" and not s2.enabled
+    assert len(reloaded.ordered()) == 2  # выключенный этап не в ordered()
+
+    reloaded.set_enabled(s2.id, True)
+    assert reloaded.ordered()[-1].id == s2.id
+
+    first = reloaded.all()[0]
+    assert reloaded.move(first.id, -1) is False  # первый некуда выше
+    assert reloaded.move(first.id, 1) is True
+    assert reloaded.all()[1].id == first.id
+
+    assert reloaded.toggle(s2.id).enabled is False
+    assert reloaded.remove(s2.id) is True
+    assert reloaded.remove(9999) is False
+
+    # повреждённый файл -> бэкап + стандартные этапы
+    p.write_text("{не json", encoding="utf-8")
+    st3 = StageStorage(p)
+    assert len(st3.all()) == 2
+    assert (tmp / "stages.json.broken").exists()
+    print("storage: OK")
+
+
+def test_direct_file_url():
+    from sender import is_direct_file_url
+
+    assert is_direct_file_url("https://cdn.example.com/files/report.pdf")
+    assert is_direct_file_url("https://x.com/a/b.zip?token=1")
+    assert not is_direct_file_url("https://disk.yandex.ru/d/abc123")
+    assert not is_direct_file_url("https://drive.google.com/file/d/abc/view")
+    assert not is_direct_file_url("ftp://x.com/a.pdf")
+    assert not is_direct_file_url("not a url")
+    print("is_direct_file_url: OK")
+
+
+def test_send_stage():
+    from sender import send_stage
+    from storage import Stage
+
+    async def run():
+        bot = FakeBot()
+        await send_stage(bot, 100, Stage(1, 0, "text", "Привет, это тест\nвторая строка"))
+        assert bot.sent[0][:2] == ("message", 100) and bot.sent[0][2] == "Привет, это тест\nвторая строка"
+        assert "parse_mode" not in bot.sent[0][3]
+
+        await send_stage(bot, 100, Stage(2, 0, "link", "https://disk.yandex.ru/d/abc"))
+        assert bot.sent[1][0] == "message" and bot.sent[1][2] == "https://disk.yandex.ru/d/abc"
+
+        await send_stage(bot, 100, Stage(3, 0, "link", "https://cdn.example.com/video.mp4"))
+        assert bot.sent[2][0] == "document" and bot.sent[2][2] == "https://cdn.example.com/video.mp4"
+
+        await send_stage(bot, 100, Stage(4, 0, "nickname", "@my_nickname"))
+        assert bot.sent[3][3].get("parse_mode") == "HTML"
+        assert "t.me/my_nickname" in bot.sent[3][2]
+
+        await send_stage(bot, 100, Stage(5, 0, "nickname", "bad nick"))
+        assert bot.sent[4][0] == "message"  # деградация в обычный текст
+
+        bot2 = FakeBot(fail_document=True)
+        await send_stage(bot2, 100, Stage(6, 0, "link", "https://cdn.example.com/a.pdf"))
+        assert bot2.sent[0][0] == "message"  # файл не отдали -> обычная ссылка
+
+        await send_stage(bot, 100, Stage(7, 0, "text", "текст"), prefix="🧪 Тест")
+        assert bot.sent[5][2].startswith("🧪 Тест")
+
+    asyncio.run(run())
+    print("send_stage: OK")
+
+
+def test_sequencer(tmp: Path):
+    from sender import StageSequencer
+    from storage import StageStorage
+
+    async def run():
+        st = StageStorage(tmp / "seq.json")
+        for _ in st.all():
+            st.remove(st.all()[0].id)
+        st.add(0, "text", "1-е сообщение")
+        st.add(0, "link", "https://example.com/file.pdf")
+
+        bot = FakeBot()
+        seq = StageSequencer(st)
+        seq.start(bot, 100)
+        await asyncio.sleep(0.3)  # даём задаче дойти до конца
+        assert not seq.active(100), "задача должна завершиться и сняться с учёта"
+        kinds = [k for k, *_ in bot.sent]
+        assert kinds == ["message", "document", "message"], f"неожиданный порядок: {kinds}"
+        # после последней — кнопка «Получить снова»
+        last = bot.sent[-1]
+        assert last[3].get("reply_markup") is not None
+
+        # перезапуск /start отменяет старую задачу
+        seq.start(bot, 100)
+        seq.start(bot, 100)
+        assert seq.active(100)
+        seq.cancel(100)
+        await asyncio.sleep(0.05)
+        assert not seq.active(100)
+
+    asyncio.run(run())
+    print("sequencer: OK")
+
+
+def test_admin_service():
+    from services import AdminService
+
+    a = AdminService(frozenset({42}))
+    assert a.is_admin(42) and not a.is_admin(7) and not a.allow_anyone()
+
+    b = AdminService(frozenset())
+    assert b.allow_anyone() and not b.is_admin(7)
+    b.promote(7)
+    assert b.is_admin(7) and not b.allow_anyone()
+    print("admin_service: OK")
+
+
+def test_config():
+    os.environ["BOT_TOKEN"] = ""
+    from config import Config
+
+    try:
+        Config.from_env()
+        raise AssertionError("должен был завершиться с ошибкой без токена")
+    except SystemExit:
+        pass
+
+    os.environ["BOT_TOKEN"] = "123:ABC"
+    os.environ["ADMIN_ID"] = "1, 2;3"
+    cfg = Config.from_env()
+    assert cfg.admin_ids == frozenset({1, 2, 3})
+    print("config: OK")
+
+
+def test_client_flow(tmp: Path):
+    """Клиент: /start -> все этапы по порядку -> кнопка «Получить снова»."""
+    from handlers.client import cb_restart, cmd_start
+    from sender import StageSequencer
+    from services import AdminService
+    from storage import StageStorage
+
+    async def run():
+        st = StageStorage(tmp / "client.json")
+        for _ in st.all():
+            st.remove(st.all()[0].id)
+        st.add(0, "text", "Привет! 👋")
+        st.add(0, "link", "https://disk.yandex.ru/d/xyz")
+        st.add(0, "nickname", "@support_nik")
+
+        admin = AdminService(frozenset({999}))
+        seq = StageSequencer(st)
+        bot = FakeBot()
+        state = FakeState()
+
+        msg = FakeMessage(bot, "/start", uid=555, cid=200)
+        await cmd_start(msg, seq, admin)
+        assert any("Готово" in a[0] for a in msg.answers)
+
+        await asyncio.sleep(0.3)
+        texts = [s[2] for s in bot.sent]
+        assert "Привет! 👋" in texts
+        assert "https://disk.yandex.ru/d/xyz" in texts
+        assert any("support_nik" in t for t in texts)
+
+        # админ /start -> не клиент
+        msg_admin = FakeMessage(bot, "/start", uid=999, cid=300)
+        before = len(bot.sent)
+        await cmd_start(msg_admin, seq, admin)
+        assert len(bot.sent) == before
+        assert any("администратор" in a[0].lower() for a in msg_admin.answers)
+
+        # кнопка «Получить снова» перезапускает
+        n_before = len(bot.sent)
+        cb = FakeCallback(bot, "client:restart", uid=555, cid=200)
+        await cb_restart(cb, seq, admin)
+        assert cb.ack is not None
+        await asyncio.sleep(0.3)
+        assert len(bot.sent) > n_before, "после restart должны прийти сообщения"
+
+    asyncio.run(run())
+    print("client_flow: OK")
+
+
+def test_admin_flow(tmp: Path):
+    """Админ: /admin -> мастер (задержка, тип, контент) -> список -> кнопки."""
+    from handlers.admin import (
+        cb_del,
+        cb_move,
+        cb_stages,
+        cb_toggle,
+        cb_wizard_edit,
+        cmd_admin,
+        cmd_add,
+        cmd_del,
+        cmd_edit,
+        cmd_stages,
+        wizard_content,
+        wizard_delay,
+        wizard_type,
+    )
+    from services import AdminService
+    from storage import StageStorage
+
+    async def run():
+        st = StageStorage(tmp / "admin.json")
+        bot = FakeBot()
+        state = FakeState()
+
+        # первый пользователь в режиме «открыт» становится админом
+        admin = AdminService(frozenset())
+        m = FakeMessage(bot, "/admin", uid=111, cid=10)
+        await cmd_admin(m, admin)
+        assert admin.is_admin(111), "первый пользователь должен стать админом"
+        assert any("администратором" in a[0].lower() for a in m.answers)
+
+        # чужому — отказ
+        stranger = FakeMessage(bot, "/admin", uid=222, cid=11)
+        await cmd_admin(stranger, admin)
+        assert any("Доступ запрещён" in a[0] for a in stranger.answers)
+
+        # мастер: новый этап
+        m = FakeMessage(bot, "/add", uid=111, cid=10)
+        await cmd_add(m, state, admin)
+        assert state.state is not None
+        assert any("Шаг 1/3" in a[0] for a in m.answers)
+
+        m2 = FakeMessage(bot, "abc", uid=111, cid=10)
+        await wizard_delay(m2, state)  # не число -> повторный запрос
+        assert state.state is not None and any("неотрицательное целое число" in a[0] for a in m2.answers)
+
+        m3 = FakeMessage(bot, "15", uid=111, cid=10)
+        await wizard_delay(m3, state)
+        assert any("Шаг 2/3" in a[0] for a in m3.answers)
+
+        cb = FakeCallback(bot, "type:link", uid=111, cid=10)
+        await wizard_type(cb, state)
+        assert any("ссылку" in a[0].lower() for a in cb.message.answers)
+
+        m4 = FakeMessage(bot, "https://disk.yandex.ru/d/abc123", uid=111, cid=10)
+        await wizard_content(m4, state, st)
+        stages = st.all()
+        assert stages[-1].content_type == "link"
+        assert stages[-1].delay_seconds == 15
+        assert stages[-1].content == "https://disk.yandex.ru/d/abc123"
+        assert state.state is None
+
+        # некорректная ссылка отклоняется
+        m_bad = FakeMessage(bot, "https://disk.yandex.ru/d/abc123", uid=111, cid=10)
+        m_bad.text = "не ссылка"
+        await cmd_add(m_bad, state, admin)
+        await wizard_delay(FakeMessage(bot, "0", uid=111, cid=10), state)
+        await wizard_type(FakeCallback(bot, "type:link", uid=111, cid=10), state)
+        before = len(st.all())
+        await wizard_content(m_bad, state, st)
+        assert len(st.all()) == before, "некорректную ссылку нельзя сохранить"
+
+        # список этапов (команда и кнопка)
+        m5 = FakeMessage(bot, "/stages", uid=111, cid=10)
+        await cmd_stages(m5, state, admin, st)
+        assert any("📋 Этапы" in a[0] for a in m5.answers)
+
+        cb2 = FakeCallback(bot, "menu:stages", uid=111, cid=10)
+        await cb_stages(cb2, admin, st)
+        assert cb2.message.edits or cb2.message.answers
+
+        # редактирование через кнопку: изменить задержку
+        target = st.all()[-1]
+        cb3 = FakeCallback(bot, f"wizard:edit:{target.id}", uid=111, cid=10)
+        await cb_wizard_edit(cb3, state, admin, st)
+        assert state.data.get("mode") == "edit" and state.data.get("stage_id") == target.id
+        await wizard_delay(FakeMessage(bot, "30", uid=111, cid=10), state)
+        await wizard_type(FakeCallback(bot, "type:text", uid=111, cid=10), state)
+        await wizard_content(FakeMessage(bot, "Новый текст", uid=111, cid=10), state, st)
+        assert st.get(target.id).delay_seconds == 30
+        assert st.get(target.id).content == "Новый текст"
+        assert st.get(target.id).content_type == "text"
+
+        # удаление (команда и кнопка)
+        last = st.all()[-1]
+        m6 = FakeMessage(bot, f"/del {len(st.all())}", uid=111, cid=10)
+        await cmd_del(m6, admin, st)
+        assert st.get(last.id) is None, "этап должен быть удалён командой /del"
+
+        remaining = st.all()
+        cb4 = FakeCallback(bot, f"del:{remaining[0].id}", uid=111, cid=10)
+        await cb_del(cb4, admin, st)
+        assert st.get(remaining[0].id) is None
+
+        # движение и переключение (добавляем этап, чтобы было минимум два)
+        while len(st.all()) < 2:
+            st.add(0, "text", "дополнительный этап")
+        a1, a2 = st.all()[0], st.all()[1]
+        cb5 = FakeCallback(bot, f"move:{a1.id}:1", uid=111, cid=10)
+        await cb_move(cb5, admin, st)
+        ids = [s.id for s in st.all()]
+        assert ids.index(a2.id) < ids.index(a1.id)
+
+        cb6 = FakeCallback(bot, f"toggle:{a1.id}", uid=111, cid=10)
+        await cb_toggle(cb6, admin, st)
+        assert st.get(a1.id).enabled is False
+
+        # /edit с неверным номером
+        m7 = FakeMessage(bot, "/edit 99", uid=111, cid=10)
+        await cmd_edit(m7, state, admin, st)
+        assert any("номер этапа" in a[0].lower() for a in m7.answers)
+
+    asyncio.run(run())
+    print("admin_flow: OK")
+
+
+def test_router_wiring():
+    """Роутеры собираются, фильтр IsAdmin работает, dp создаётся."""
+    import asyncio
+
+    from aiogram import Dispatcher
+
+    from handlers.admin import IsAdmin, router as admin_router
+    from handlers.client import router as client_router
+    from services import AdminService
+
+    admin = AdminService(frozenset({42}))
+    msg_admin = FakeMessage(FakeBot(), "x", uid=42)
+    msg_other = FakeMessage(FakeBot(), "x", uid=43)
+    assert asyncio.run(IsAdmin()(msg_admin, admin=admin)) is True
+    assert asyncio.run(IsAdmin()(msg_other, admin=admin)) is False
+    assert asyncio.run((~IsAdmin())(msg_other, admin=admin)) is True
+    assert asyncio.run((~IsAdmin())(msg_admin, admin=admin)) is False
+
+    dp = Dispatcher(storage=None, admin=None, sequencer=None)
+    dp.include_router(admin_router)
+    dp.include_router(client_router)
+    print("router_wiring: OK")
+
+
+def main():
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        test_storage(tmp / "s1")
+        test_direct_file_url()
+        test_send_stage()
+        test_sequencer(tmp / "s2")
+        test_admin_service()
+        test_config()
+        test_client_flow(tmp / "s3")
+        test_admin_flow(tmp / "s4")
+        test_router_wiring()
+    print("\nВсе тесты прошли ✅")
+
+
+if __name__ == "__main__":
+    main()

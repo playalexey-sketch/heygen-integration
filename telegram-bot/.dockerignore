@@ -1,0 +1,10 @@
+# Секреты и локальные данные не должны попадать в образ
+.env
+bot_data/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+tests/
+.git/
+.gitignore

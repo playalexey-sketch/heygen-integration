@@ -1,0 +1,13 @@
+services:
+  tg-bot:
+    build: .
+    container_name: tg-stage-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Каталог данных внутри контейнера; смонтирован на ./bot_data хоста,
+      # поэтому этапы переживут пересборку и обновление образа.
+      DATA_DIR: /app/bot_data
+    volumes:
+      - ./bot_data:/app/bot_data
