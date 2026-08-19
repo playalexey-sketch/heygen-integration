@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 
 from aiogram import Bot, Dispatcher
-from aiogram.exceptions import TelegramUnauthorizedError
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
 
 from config import Config
 from handlers.admin import router as admin_router
@@ -27,6 +29,18 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 log = logging.getLogger("main")
+
+
+class IPv4AiohttpSession(AiohttpSession):
+    """Сессия с принудительным IPv4.
+
+    На части Windows-машин IPv6 к api.telegram.org «зависает» и даёт ошибку
+    ClientConnectorError [Превышен таймаут семафора]. IPv4 это обходит.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._connector_init.setdefault("family", socket.AF_INET)
 
 
 async def main() -> None:
@@ -44,7 +58,7 @@ async def main() -> None:
     admin = AdminService(cfg.admin_ids)
     sequencer = StageSequencer(storage)
 
-    bot = Bot(token=cfg.bot_token)
+    bot = Bot(token=cfg.bot_token, session=IPv4AiohttpSession())
     try:
         me = await bot.me()
         log.info("Бот @%s запущен", me.username)
@@ -55,7 +69,8 @@ async def main() -> None:
         )
     except Exception:
         log.warning(
-            "Не удалось выполнить getMe (возможно, нет сети) — продолжаю, polling сам будет повторять запросы"
+            "getMe не удалось: нет сети, или VPN/антивирус блокирует api.telegram.org. "
+            "Продолжаю — polling будет повторять запросы."
         )
     log.info(
         "Этапов: %d (включено: %d). Файл данных: %s",
@@ -74,8 +89,16 @@ async def main() -> None:
     dp.include_router(admin_router)   # сначала админ, затем клиент
     dp.include_router(client_router)
 
-    # start_polling сам открывает/закрывает сессию бота при старте и стопе.
-    await dp.start_polling(bot)
+    # Polling: если сеть временно недоступна — бот не вылетает,
+    # а ждёт и переподключается (внутри polling сам ретраит getUpdates).
+    while True:
+        try:
+            # start_polling сам открывает/закрывает сессию бота при старте и стопе.
+            await dp.start_polling(bot)
+            return
+        except TelegramNetworkError:
+            log.error("Сеть недоступна — бот ЖИВ, переподключение через 15 секунд")
+            await asyncio.sleep(15)
 
 
 if __name__ == "__main__":
