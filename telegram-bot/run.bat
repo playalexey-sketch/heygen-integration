@@ -1,41 +1,75 @@
 @echo off
-rem Одной командой: зависимости + запуск бота (Windows)
-rem
-rem   run.bat
-rem
-rem Первый раз создаст venv, поставит зависимости, создаст .env из шаблона.
+setlocal
 cd /d %~dp0
+title TG BOT
 
+echo ==================================================
+echo  Работаем в папке: %CD%
+echo  Если это не ваша папка telegram-bot - вы
+echo  запустили run.bat не оттуда.
+echo ==================================================
+echo.
+
+echo [1/4] Проверка Python:
 where python >nul 2>nul
 if %errorlevel% neq 0 (
-  echo Не найден Python. Установите Python 3.10+ ^(https://www.python.org/downloads/^)
-  echo и при установке отметьте галку "Add Python to PATH".
-  pause
-  exit /b 1
+  echo     PYTHON NOT FOUND.
+  echo     Установите Python 3.10+: https://www.python.org/downloads/
+  echo     ВАЖНО: отметьте галочку "Add Python to PATH".
+  goto :finish
 )
+echo     найден
 
-if not exist venv (
-  echo - Создаю виртуальное окружение ^(venv^)...
+if not exist venv\Scripts\python.exe (
+  echo [2/4] Создаю venv, может занять минуту...
   python -m venv venv
+  if not exist venv\Scripts\python.exe (
+    echo     VENV FAILED.
+    echo     Если открылось окно Microsoft Store - ваш "python"
+    echo     это заглушка из магазина, а не настоящий Python.
+    echo     Установите с https://www.python.org/downloads/
+    echo     и отметьте галочку "Add Python to PATH".
+    goto :finish
+  )
+  echo     OK
+) else (
+  echo [2/4] venv: OK
 )
-
 call venv\Scripts\activate.bat
 
-echo - Проверяю зависимости...
-python -m pip install --quiet --upgrade pip
-python -m pip install --quiet -r requirements.txt
+echo [3/4] Зависимости, может занять несколько минут...
+python -m pip install -q --upgrade pip
+python -m pip install -r requirements.txt
+if %errorlevel% neq 0 (
+  echo     PIP FAILED - ошибки выше.
+  goto :finish
+)
+echo     OK
 
 if not exist .env (
   copy .env.example .env >nul
-  echo.
-  echo Я создал файл .env из шаблона.
-  echo Впишите в него BOT_TOKEN и ADMIN_ID, затем запустите run.bat ещё раз.
-  echo   Токен бота:      @BotFather  -\> /newbot (или /token)
-  echo   Ваш Telegram ID: напишите боту @userinfobot
-  pause
-  exit /b 0
+  echo [4/4] Создал .env из шаблона.
+) else (
+  echo [4/4] .env: есть.
+)
+findstr /C:"PASTE_YOUR_BOT_TOKEN" .env >nul
+if %errorlevel% equ 0 (
+  echo     BOT_TOKEN ещё не вписан.
+  echo     Выполните:  notepad .env
+  echo     Впишите BOT_TOKEN и ADMIN_ID, сохраните,
+  echo     и ЗАПУСТИТЕ run.bat ЕЩЁ РАЗ - бот поднимется только тогда.
+  goto :finish
 )
 
-echo - Запускаю бота ^(остановить: Ctrl+C^)...
+echo.
+echo [5/5] Запускаю бота, остановить: Ctrl+C
+echo ------------------------------------------------------------
 python main.py
-pause
+echo ------------------------------------------------------------
+echo     Бот остановлен.
+goto :finish
+
+:finish
+echo.
+echo Окно закроется само через 20 секунд.
+timeout /t 20 >nul
