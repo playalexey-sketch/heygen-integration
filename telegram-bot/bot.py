@@ -20,7 +20,7 @@ from app_common import apply_proxy, check_bot_online, load_proxy, setup
 from config import Config
 from handlers.admin import router as admin_router
 from handlers.client import router as client_router
-from handlers.manager import router as manager_router
+from handlers.manager import BOT_COMMANDS, router as manager_router, set_bot_menu
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,6 +63,12 @@ async def main() -> None:
                     "кто пришлёт /admin. Веб-админка защищена паролем.")
 
     await check_bot_online(bot)
+    try:
+        await set_bot_menu(bot)
+        log.info("Меню команд установлено (%d команд) — при вводе «/» появятся подсказки",
+                 len(BOT_COMMANDS))
+    except Exception:
+        log.warning("Меню команд пока не установлено (нет связи) — обновите командой /setmenu")
     await poll_forever(bot, dp, cfg)
 
 

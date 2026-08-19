@@ -23,6 +23,7 @@ from sender import StageSequencer, send_rule_content
 from services import AdminService
 
 from .admin import IsAdmin
+from .manager import ADMIN_HELP
 
 router = Router(name="client")
 
@@ -114,7 +115,11 @@ async def cb_restart(
 
 @router.message(Command("help"))
 async def cmd_help(message: Message, admin: AdminService):
-    if not message.from_user or admin.is_admin(message.from_user.id):
+    if not message.from_user:
+        return
+    # Админ в личке получает полный справочник команд
+    if admin.is_admin(message.from_user.id) and message.chat.type == "private":
+        await message.answer(ADMIN_HELP)
         return
     if message.chat.type != "private":
         await message.answer("Я работаю в личке.")

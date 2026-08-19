@@ -39,6 +39,10 @@ class FakeBot:
             username = "fakebot"
         return _Me()
 
+    async def set_my_commands(self, commands, **kw):
+        self.sent.append(("set_menu", len(commands), kw))
+        return True
+
     async def send_message(self, chat_id, text, **kw):
         self.sent.append(("message", chat_id, text, kw))
         return "ok"
@@ -422,6 +426,43 @@ def test_manager(tmp: Path):
     print("manager: OK")
 
 
+def test_bot_menu():
+    """Меню команд (setMyCommands) и /help-справочник для админа."""
+    from handlers.client import cmd_help
+    from handlers.manager import BOT_COMMANDS, set_bot_menu
+    from services import AdminService
+
+    async def run():
+        bot = FakeBot()
+        # все команды уникальны, без "/" и в лимитах Telegram
+        names = [c for c, _ in BOT_COMMANDS]
+        assert len(names) == len(set(names)), "дубли в списке команд"
+        for c, d in BOT_COMMANDS:
+            assert not c.startswith("/") and len(c) <= 32 and 1 <= len(d) <= 256
+
+        await set_bot_menu(bot)
+        menus = [x for x in bot.sent if x[0] == "set_menu"]
+        assert menus and menus[0][1] == len(BOT_COMMANDS)
+
+        admin = AdminService(frozenset({1}))
+        # админ в личке -> справочник
+        msg = FakeMessage(bot, "/help", uid=1, cid=10)
+        await cmd_help(msg, admin)
+        assert any("СПРАВОЧНИК КОМАНД" in a[0] for a in msg.answers)
+        assert any("/mail" in a[0] and "/crm" in a[0] for a in msg.answers)
+        # клиент -> подсказка про /start
+        msg2 = FakeMessage(bot, "/help", uid=7, cid=11)
+        await cmd_help(msg2, admin)
+        assert any("/start" in a[0] for a in msg2.answers)
+        # админ в группе -> не раскрывать справочник
+        msg3 = FakeMessage(bot, "/help", uid=1, cid=12, ctype="group")
+        await cmd_help(msg3, admin)
+        assert not any("СПРАВОЧНИК" in a[0] for a in msg3.answers)
+
+    asyncio.run(run())
+    print("bot_menu: OK")
+
+
 def test_admin_service():
     from services import AdminService
 
@@ -694,6 +735,7 @@ def main():
         test_media_and_rules(tmp / "s6")
         test_crm_storage(tmp / "s7")
         test_manager(tmp / "s8")
+        test_bot_menu()
         test_direct_file_url()
         test_send_stage()
         test_sequencer(tmp / "s2")

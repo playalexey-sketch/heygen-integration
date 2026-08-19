@@ -41,6 +41,8 @@ class OfflineBot(Bot):
         name = type(method).__name__
         if name == "GetMe":
             return User(id=123456789, is_bot=True, first_name="intbot", username="intbot")
+        if name == "SetMyCommands":
+            return True
         if name == "SendMessage":
             self.sent.append(
                 ("message", method.chat_id, method.text, {"reply_markup": method.reply_markup})
@@ -244,11 +246,18 @@ async def run() -> None:
         assert any("доставлено" in t for t in got), "нет отчёта"
         print("14. /crm + /mail рассылка: OK")
 
-        # ---------- 15. /setproxy ----------
+        # ---------- 15. /help админу -> справочник; /setmenu -> меню команд ----------
+        await dp.feed_update(bot, upd_message(111, 100, "/help"))
+        assert any("СПРАВОЧНИК КОМАНД" in t for t in texts(bot, 100)), "нет справочника команд"
+        await dp.feed_update(bot, upd_message(111, 100, "/setmenu"))
+        assert any("Меню команд обновлено" in t for t in texts(bot, 100)[-1:]), "/setmenu не сработал"
+        print("15. /help-справочник + /setmenu: OK")
+
+        # ---------- 16. /setproxy ----------
         await dp.feed_update(bot, upd_message(111, 100, "/setproxy socks5://127.0.0.1:10808"))
         assert cfg.proxy_path.exists() and "10808" in cfg.proxy_path.read_text()
         assert any("Прокси обновлён" in t for t in texts(bot, 100)[-1:])
-        print("15. /setproxy: OK")
+        print("16. /setproxy: OK")
 
     print("\nИнтеграционный тест пройден ✅")
 
