@@ -1,42 +1,41 @@
 @echo off
-chcp 65001 >nul
-rem –û–¥–Ω–æ–π –∫–æ–º–∞–Ω–¥–æ–π: –∑–∞–≤–∏—Å–∏–º–æ—Å—Ç–∏ + –∑–∞–ø—É—Å–∫ –±–æ—Ç–∞ (Windows)
+rem é§≠Æ© ™Æ¨†≠§Æ©: ß†¢®·®¨Æ·‚® + ß†Ø„·™ °Æ‚† (Windows)
 rem
 rem   run.bat
 rem
-rem –ü–µ—Ä–≤—ã–π —Ä–∞–∑ —Å–æ–∑–¥–∞—Å—Ç venv, –ø–æ—Å—Ç–∞–≤–∏—Ç –∑–∞–≤–∏—Å–∏–º–æ—Å—Ç–∏, —Å–æ–∑–¥–∞—Å—Ç .env –∏–∑ —à–∞–±–ª–æ–Ω–∞.
+rem è•‡¢Î© ‡†ß ·Æß§†·‚ venv, ØÆ·‚†¢®‚ ß†¢®·®¨Æ·‚®, ·Æß§†·‚ .env ®ß Ë†°´Æ≠†.
 cd /d %~dp0
 
 where python >nul 2>nul
 if %errorlevel% neq 0 (
-  echo –ù–µ –Ω–∞–π–¥–µ–Ω Python. –£—Å—Ç–∞–Ω–æ–≤–∏—Ç–µ Python 3.10+ ^(https://www.python.org/downloads/^)
-  echo –∏ –ø—Ä–∏ —É—Å—Ç–∞–Ω–æ–≤–∫–µ –æ—Ç–º–µ—Ç—å—Ç–µ –≥–∞–ª–∫—É "Add Python to PATH".
+  echo ç• ≠†©§•≠ Python. ì·‚†≠Æ¢®‚• Python 3.10+ ^(https://www.python.org/downloads/^)
+  echo ® Ø‡® „·‚†≠Æ¢™• Æ‚¨•‚Ï‚• £†´™„ "Add Python to PATH".
   pause
   exit /b 1
 )
 
 if not exist venv (
-  echo - –°–æ–∑–¥–∞—é –≤–∏—Ä—Ç—É–∞–ª—å–Ω–æ–µ –æ–∫—Ä—É–∂–µ–Ω–∏–µ ^(venv^)...
+  echo - ëÆß§†Ó ¢®‡‚„†´Ï≠Æ• Æ™‡„¶•≠®• ^(venv^)...
   python -m venv venv
 )
 
 call venv\Scripts\activate.bat
 
-echo - –ü—Ä–æ–≤–µ—Ä—è—é –∑–∞–≤–∏—Å–∏–º–æ—Å—Ç–∏...
+echo - è‡Æ¢•‡ÔÓ ß†¢®·®¨Æ·‚®...
 python -m pip install --quiet --upgrade pip
 python -m pip install --quiet -r requirements.txt
 
 if not exist .env (
   copy .env.example .env >nul
   echo.
-  echo –Ø —Å–æ–∑–¥–∞–ª —Ñ–∞–π–ª .env –∏–∑ —à–∞–±–ª–æ–Ω–∞.
-  echo –í–ø–∏—à–∏—Ç–µ –≤ –Ω–µ–≥–æ BOT_TOKEN –∏ ADMIN_ID, –∑–∞—Ç–µ–º –∑–∞–ø—É—Å—Ç–∏—Ç–µ run.bat –µ—â—ë —Ä–∞–∑.
-  echo   –¢–æ–∫–µ–Ω –±–æ—Ç–∞:      @BotFather  -\> /newbot (–∏–ª–∏ /token)
-  echo   –í–∞—à Telegram ID: –Ω–∞–ø–∏—à–∏—Ç–µ –±–æ—Ç—É @userinfobot
+  echo ü ·Æß§†´ ‰†©´ .env ®ß Ë†°´Æ≠†.
+  echo ÇØ®Ë®‚• ¢ ≠•£Æ BOT_TOKEN ® ADMIN_ID, ß†‚•¨ ß†Ø„·‚®‚• run.bat •ÈÒ ‡†ß.
+  echo   íÆ™•≠ °Æ‚†:      @BotFather  -\> /newbot (®´® /token)
+  echo   Ç†Ë Telegram ID: ≠†Ø®Ë®‚• °Æ‚„ @userinfobot
   pause
   exit /b 0
 )
 
-echo - –ó–∞–ø—É—Å–∫–∞—é –±–æ—Ç–∞ ^(–æ—Å—Ç–∞–Ω–æ–≤–∏—Ç—å: Ctrl+C^)...
+echo - á†Ø„·™†Ó °Æ‚† ^(Æ·‚†≠Æ¢®‚Ï: Ctrl+C^)...
 python main.py
 pause
