@@ -28,9 +28,16 @@ class FakeChat:
 
 
 class FakeBot:
+    username = "fakebot"
+
     def __init__(self, fail_document: bool = False):
         self.sent: list[tuple] = []
         self.fail_document = fail_document
+
+    async def me(self):
+        class _Me:
+            username = "fakebot"
+        return _Me()
 
     async def send_message(self, chat_id, text, **kw):
         self.sent.append(("message", chat_id, text, kw))
@@ -303,6 +310,118 @@ def test_media_and_rules(tmp: Path):
     print("media_and_rules: OK")
 
 
+def test_crm_storage(tmp: Path):
+    from crm import CrmStorage
+
+    crm = CrmStorage(tmp / "crm.json")
+
+    class U:
+        def __init__(self, id, username="", first_name="", last_name=""):
+            self.id = id; self.username = username; self.first_name = first_name; self.last_name = last_name
+
+    r1 = crm.upsert(U(111, "ivan", "Иван", "И."), source="youtube")
+    crm.upsert(U(111, "ivan", "Иван", "И."), source="vk")  # повтор: источник обновился
+    crm.upsert(U(222, "maria", "Мария", "М."), source="youtube")
+    crm.touch(111)
+
+    assert len(crm.all()) == 2
+    assert crm.get(111).source == "vk"
+    assert crm.get(111).msgs == 1
+    assert len(crm.by_source("youtube")) == 1
+    assert crm.get(222).first_name == "Мария"
+
+    crm.add_tag(111, "тёплый")
+    assert crm.by_tag("тёплый") and crm.by_tag("тёплый")[0].id == 111
+    crm.remove_tag(111, "тёплый")
+    assert crm.by_tag("тёплый") == []
+
+    assert crm.sources_stats() == {"vk": 1, "youtube": 1}
+
+    # пересоздание из файла
+    crm2 = CrmStorage(tmp / "crm.json")
+    assert len(crm2.all()) == 2 and crm2.get(222).username == "maria"
+    print("crm_storage: OK")
+
+
+def test_manager(tmp: Path):
+    """Менеджер в Telegram: /rules (ссылки), /crm, /mail (рассылка)."""
+    from aiogram.exceptions import TelegramForbiddenError
+
+    from content import ContentStorage
+    from crm import CrmStorage
+    from handlers.manager import cmd_crm, cmd_mail, cmd_rules
+    from services import AdminService
+
+    async def run():
+        content = ContentStorage(tmp / "mgr_content.json")
+        content.add_rule("123", "text", "код-подарок", "exact")
+        content.add_rule("vk", "link", "https://vk.com/x", "exact")
+        crm = CrmStorage(tmp / "mgr_crm.json")
+
+        class U:
+            def __init__(self, id, username=""):
+                self.id = id
+                self.username = username
+                self.first_name = "Ф"
+                self.last_name = ""
+        crm.upsert(U(111, "ivan"), source="youtube")
+        crm.upsert(U(222, "maria"), source="vk")
+        crm.add_tag(111, "тёплый")
+
+        admin = AdminService(frozenset({1}))
+        bot = FakeBot()
+
+        # /rules: список + ссылки
+        msg = FakeMessage(bot, "/rules", uid=1, cid=10)
+        await cmd_rules(msg, admin, content)
+        text = msg.answers[0][0]
+        assert "https://t.me/fakebot?start=123" in text
+        assert "https://t.me/fakebot?start=vk" in text
+        assert "youtube" in text and "instagram" in text  # соц-ссылки
+
+        # /crm: статистика
+        msg = FakeMessage(bot, "/crm", uid=1, cid=10)
+        await cmd_crm(msg, admin, crm)
+        text = msg.answers[0][0]
+        assert "клиентов 2" in text
+        assert "youtube" in text and "тёплый" in text
+
+        # /mail all: рассылка + отчёт
+        msg = FakeMessage(bot, "/mail all Привет всем!", uid=1, cid=10)
+        await cmd_mail(msg, admin, crm)
+        assert any("Рассылка запущена" in a[0] for a in msg.answers)
+        await asyncio.sleep(1.0)
+        got = [s[2] for s in bot.sent if s[0] == "message"]
+        assert got.count("Привет всем!") == 2, f"рассылка не всем: {got}"
+        assert any("доставлено 2" in t for t in got), "нет отчёта о доставке"
+
+        # /mail tag: выборочная
+        bot.sent.clear()
+        msg = FakeMessage(bot, "/mail tag:тёплый Для тёплых", uid=1, cid=10)
+        await cmd_mail(msg, admin, crm)
+        await asyncio.sleep(0.8)
+        got = [s[2] for s in bot.sent if s[0] == "message"]
+        assert got.count("Для тёплых") == 1
+
+        # заблокировавший бота клиент: отметка blocked
+        bot.sent.clear()
+
+        class BlockingBot(FakeBot):
+            async def send_message(self, chat_id, text, **kw):
+                if chat_id == 222:
+                    raise TelegramForbiddenError(method=None, message="blocked")
+                await super().send_message(chat_id, text, **kw)
+        b2 = BlockingBot()
+        msg = FakeMessage(b2, "/mail all Второй раунд", uid=1, cid=10)
+        await cmd_mail(msg, admin, crm)
+        await asyncio.sleep(0.8)
+        assert crm.get(222).blocked is True, "заблокировавший не отмечен"
+        assert any("сбоев 1" in s[2] for s in b2.sent if s[0] == "message")
+
+    asyncio.run(run())
+    print("manager: OK")
+
+
 def test_admin_service():
     from services import AdminService
 
@@ -349,8 +468,10 @@ def test_client_flow(tmp: Path):
         st.add(0, "nickname", "@support_nik")
 
         from content import ContentStorage
+        from crm import CrmStorage
         content = ContentStorage(tmp / "client_content.json")
         content.add_rule("123", "text", "Бонус по коду 123!")
+        crm = CrmStorage(tmp / "client_crm.json")
 
         admin = AdminService(frozenset({999}))
         seq = StageSequencer(st, content)
@@ -358,7 +479,7 @@ def test_client_flow(tmp: Path):
         state = FakeState()
 
         msg = FakeMessage(bot, "/start", uid=555, cid=200)
-        await cmd_start(msg, FakeCommand(None), seq, admin, content)
+        await cmd_start(msg, FakeCommand(None), seq, admin, content, crm)
         assert any("Готово" in a[0] for a in msg.answers)
 
         await asyncio.sleep(0.3)
@@ -370,7 +491,7 @@ def test_client_flow(tmp: Path):
 
         # deep-link: /start с кодом 123 -> правило срабатывает
         msg_code = FakeMessage(bot, "/start 123", uid=555, cid=200)
-        await cmd_start(msg_code, FakeCommand("123"), seq, admin, content)
+        await cmd_start(msg_code, FakeCommand("123"), seq, admin, content, crm)
         await asyncio.sleep(0.4)
         texts = [x[2] for x in bot.sent]
         assert any("Бонус по коду 123!" in t for t in texts), "правило по коду из deep-link не сработало"
@@ -378,26 +499,32 @@ def test_client_flow(tmp: Path):
         # клиент ввёл ключевое слово текстом -> сработало
         msg_kw = FakeMessage(bot, "123", uid=555, cid=200)
         from handlers.client import client_text
-        await client_text(msg_kw, admin, content)
+        await client_text(msg_kw, admin, content, crm)
         assert any("Бонус по коду 123!" in x[2] for x in bot.sent), "правило по введённому тексту не сработало"
         assert not msg_kw.answers, "при сработавшем правиле подсказка не нужна"
 
         # клиент ввёл что-то другое -> подсказка
         msg_other = FakeMessage(bot, "привет", uid=555, cid=200)
-        await client_text(msg_other, admin, content)
+        await client_text(msg_other, admin, content, crm)
         assert any("/start" in a[0] for a in msg_other.answers), "подсказка не пришла"
+
+        # CRM: клиент записан, источник — код из deep-link
+        rec = crm.get(555)
+        assert rec is not None, "клиент не записан в CRM"
+        assert rec.source == "123", f"источник должен быть 123, а не {rec.source!r}"
+        assert rec.msgs >= 1, "сообщения клиента не учтены"
 
         # админ /start -> не клиент
         msg_admin = FakeMessage(bot, "/start", uid=999, cid=300)
         before = len(bot.sent)
-        await cmd_start(msg_admin, FakeCommand(None), seq, admin, content)
+        await cmd_start(msg_admin, FakeCommand(None), seq, admin, content, crm)
         assert len(bot.sent) == before
         assert any("администратор" in a[0].lower() for a in msg_admin.answers)
 
         # кнопка «Получить снова» перезапускает
         n_before = len(bot.sent)
         cb = FakeCallback(bot, "client:restart", uid=555, cid=200)
-        await cb_restart(cb, seq, admin)
+        await cb_restart(cb, seq, admin, crm)
         assert cb.ack is not None
         await asyncio.sleep(0.3)
         assert len(bot.sent) > n_before, "после restart должны прийти сообщения"
@@ -565,6 +692,8 @@ def main():
         test_storage(tmp / "s1")
         test_cross_process_sync(tmp / "s5")
         test_media_and_rules(tmp / "s6")
+        test_crm_storage(tmp / "s7")
+        test_manager(tmp / "s8")
         test_direct_file_url()
         test_send_stage()
         test_sequencer(tmp / "s2")

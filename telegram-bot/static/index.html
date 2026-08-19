@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Бот — панель управления</title>
+<title>Бот — панель (просмотр)</title>
 <style>
   :root {
     --bg: #0f1420; --card: #1a2233; --card2: #212c42; --line: #2c3a55;
@@ -15,7 +15,7 @@
     margin: 0; padding: 0; background: var(--bg); color: var(--text);
     font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   }
-  .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 60px; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
   h1 { font-size: 22px; margin: 8px 0 4px; }
   .sub { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
   .card {
@@ -23,23 +23,18 @@
     border-radius: 12px; padding: 18px; margin-bottom: 18px;
   }
   .card h2 { font-size: 16px; margin: 0 0 12px; }
-  input, select, textarea {
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input {
     width: 100%; background: var(--card2); color: var(--text);
     border: 1px solid var(--line); border-radius: 8px;
     padding: 10px 12px; font-size: 14px; font-family: inherit;
   }
-  textarea { min-height: 84px; resize: vertical; }
-  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; }
-  .row > div { flex: 1; min-width: 140px; }
   button {
     background: var(--accent); color: #fff; border: 0; border-radius: 8px;
     padding: 10px 16px; font-size: 14px; cursor: pointer;
   }
   button:hover { filter: brightness(1.1); }
   button.sec { background: var(--card2); border: 1px solid var(--line); }
-  button.danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
-  button.sm { padding: 4px 10px; font-size: 13px; border-radius: 6px; }
   .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -48,9 +43,11 @@
   .badge {
     display: inline-block; padding: 2px 8px; border-radius: 999px;
     font-size: 12px; background: var(--card2); border: 1px solid var(--line);
+    white-space: nowrap;
   }
   .badge.on { border-color: var(--ok); color: var(--ok); }
   .badge.off { border-color: var(--warn); color: var(--warn); }
+  .badge.bad { border-color: var(--danger); color: var(--danger); }
   .content-cell { max-width: 320px; word-break: break-word; white-space: pre-wrap; }
   .hint { color: var(--muted); font-size: 13px; line-height: 1.5; }
   .msg { margin-top: 10px; font-size: 14px; min-height: 18px; word-break: break-word; }
@@ -62,17 +59,17 @@
   .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
   .statusline { color: var(--muted); font-size: 13px; }
   .statusline b { color: var(--text); }
-  td.btns { white-space: nowrap; }
-  td.btns button { margin-right: 4px; }
   .tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
   .tabs button {
     background: var(--card2); border: 1px solid var(--line); color: var(--muted);
     padding: 9px 18px; border-radius: 999px;
   }
   .tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  code { background: var(--card2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font-size: 12px; }
-  .linkrow { display: flex; gap: 6px; align-items: center; }
-  .linkrow input { font-size: 12px; }
+  code { background: var(--card2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font-size: 12px; word-break: break-all; }
+  .ro-note {
+    background: var(--card2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 14px; font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.5;
+  }
 </style>
 </head>
 <body>
@@ -81,7 +78,7 @@
   <!-- ======= ЛОГИН ======= -->
   <div id="loginView">
     <div class="card">
-      <h1>🔐 Панель управления</h1>
+      <h1>🔐 Панель бота</h1>
       <p class="sub">Введите пароль (из ADMIN_PASSWORD в .env,<br>или из файла bot_data/admin_password.txt)</p>
       <label>Пароль</label>
       <input type="password" id="loginPass" autofocus>
@@ -93,29 +90,26 @@
   <!-- ======= ПАНЕЛЬ ======= -->
   <div id="panelView" class="hidden">
     <div class="top">
-      <h1>⚙️ Панель управления ботом</h1>
+      <h1>📊 Панель бота (просмотр)</h1>
       <div style="display:flex; gap:10px; align-items:center;">
         <span class="statusline" id="statusLine">…</span>
-        <button class="sec sm" onclick="doLogout()">Выйти</button>
+        <button class="sec" onclick="loadAll()">🔄</button>
+        <button class="sec" onclick="doLogout()">Выйти</button>
       </div>
     </div>
-    <p class="sub">Этапы отправляются клиенту по порядку после /start. Изменения действуют сразу.</p>
 
-    <!-- ====== VPN / прокси ====== -->
+    <div class="ro-note">
+      📱 <b>Управление — в Telegram</b> (напишите боту <code>/admin</code>): этапы <code>/add</code>,
+      правила и ссылки <code>/rules</code>, <code>/addrule</code>, медиа <code>/upmedia</code>,
+      прокси <code>/setproxy</code>, клиенты и рассылки <code>/crm</code>, <code>/mail</code>.
+      Здесь — только отображение: что изменилось в Telegram, видно сразу.
+    </div>
+
+    <!-- ====== подключение (просмотр) ====== -->
     <div class="card">
-      <h2>🔌 Подключение к Telegram (VPN / прокси)</h2>
-      <p class="hint">Если бот не может достучаться до Telegram напрямую (блокировка),
-      укажите прокси вашего VPN. Типичные адреса:
-      <b>v2rayN</b>: <code>socks5://127.0.0.1:10808</code>;
-      <b>Clash</b>: <code>http://127.0.0.1:7890</code>;
-      <b>Shadowsocks</b>: <code>socks5://127.0.0.1:1080</code>.
-      Бот подхватит сохранённый прокси автоматически (≈15 сек).</p>
-      <label>Прокси (пусто = прямое соединение)</label>
-      <input type="text" id="proxyInput" placeholder="socks5://127.0.0.1:10808">
-      <div class="actions">
-        <button onclick="saveProxy(true)">💾 Сохранить и проверить</button>
-        <button class="sec" onclick="saveProxy(false)">🔍 Просто попробовать</button>
-      </div>
+      <h2>🔌 Подключение к Telegram</h2>
+      <label>Прокси (меняется командой <code>/setproxy</code> в Telegram)</label>
+      <input type="text" id="proxyInput" readonly>
       <div class="msg" id="proxyMsg"></div>
     </div>
 
@@ -123,143 +117,65 @@
     <div class="tabs">
       <button id="tabbtn_stages" class="active" onclick="showTab('stages')">📋 Этапы</button>
       <button id="tabbtn_media" onclick="showTab('media')">🎬 Медиа</button>
-      <button id="tabbtn_rules" onclick="showTab('rules')">🔑 Ключевые слова</button>
+      <button id="tabbtn_rules" onclick="showTab('rules')">🔑 Ссылки и правила</button>
+      <button id="tabbtn_crm" onclick="showTab('crm')">👥 CRM (клиенты)</button>
     </div>
 
     <!-- ================= ЭТАПЫ ================= -->
     <div id="tab_stages">
       <div class="card">
-        <h2 id="formTitle">➕ Добавить этап</h2>
-        <div class="row">
-          <div>
-            <label>Задержка, сек (0 = сразу)</label>
-            <input type="number" id="fDelay" min="0" max="86400" value="0">
-          </div>
-          <div>
-            <label>Тип контента</label>
-            <select id="fType" onchange="onTypeChange('f')">
-              <option value="text">📄 Текстовое сообщение</option>
-              <option value="link">🔗 Ссылка на файл</option>
-              <option value="nickname">👤 Ник в Telegram</option>
-              <option value="media">🎬 Медиа-файл (видео/аудио/картинка)</option>
-            </select>
-          </div>
-        </div>
-        <label id="fContentLabel">Текст сообщения</label>
-        <textarea id="fContent" placeholder="Например: Привет! 👋"></textarea>
-        <select id="fMedia" class="hidden"></select>
-        <div class="actions">
-          <button id="fSave" onclick="saveStage()">Добавить этап</button>
-          <button class="sec hidden" id="fCancel" onclick="cancelEdit()">Отмена</button>
-        </div>
-        <div class="msg" id="formMsg"></div>
-      </div>
-
-      <div class="card">
         <h2>📋 Этапы (сверху вниз — в порядке отправки)</h2>
+        <p class="hint">Управление: <code>/add</code>, <code>/edit N</code>, <code>/del N</code> в Telegram.</p>
         <table>
-          <thead><tr><th>#</th><th>Статус</th><th>Тип</th><th>Задержка</th><th>Контент</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Статус</th><th>Тип</th><th>Задержка</th><th>Контент</th></tr></thead>
           <tbody id="stagesBody"></tbody>
         </table>
-        <div class="msg" id="listMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2>🧪 Тест сценария</h2>
-        <p class="hint">Бот отправит все включённые этапы в указанный чат (обычно — ваш личный чат с ботом).
-           Ваш числовой ID — у бота <b>@userinfobot</b>.</p>
-        <div class="row"><div><label>Chat ID</label><input type="text" id="testChat" placeholder="123456789"></div></div>
-        <div class="actions">
-          <button onclick="runTest(false)">🧪 Тест сейчас (без задержек)</button>
-          <button class="sec" onclick="runTest(true)">▶️ Тест с реальными задержками</button>
-        </div>
-        <div class="msg" id="testMsg"></div>
       </div>
     </div>
 
     <!-- ================= МЕДИА ================= -->
     <div id="tab_media" class="hidden">
       <div class="card">
-        <h2>🎬 Загрузить файл</h2>
-        <p class="hint">Любой формат: картинки, видео, аудио, документы (до 50 МБ — лимит Telegram-бота).</p>
-        <label>Файл</label>
-        <input type="file" id="mediaFile">
-        <div class="actions"><button onclick="uploadMedia()">⬆️ Загрузить</button></div>
-        <div class="msg" id="mediaMsg"></div>
-      </div>
-      <div class="card">
-        <h2>📁 Загруженные файлы</h2>
+        <h2>🎬 Медиа-файлы бота</h2>
+        <p class="hint">Загрузка: отправьте боту команду <code>/upmedia</code>, затем сам файл.</p>
         <table>
-          <thead><tr><th></th><th>Имя</th><th>Тип</th><th>Размер</th><th></th></tr></thead>
+          <thead><tr><th>ID</th><th>Имя</th><th>Тип</th><th>Размер</th></tr></thead>
           <tbody id="mediaBody"></tbody>
         </table>
-        <div class="msg" id="mediaListMsg"></div>
       </div>
     </div>
 
-    <!-- ================= КЛЮЧЕВЫЕ СЛОВА ================= -->
+    <!-- ================= ПРАВИЛА / ССЫЛКИ ================= -->
     <div id="tab_rules" class="hidden">
       <div class="card">
-        <h2 id="ruleFormTitle">➕ Добавить правило</h2>
-        <p class="hint">Если клиент приходит по ссылке <b>t.me/имя_бота?start=КОД</b> или вводит текст,
-        совпадающий с триггером — бот автоматически отправит привязанный контент.</p>
-        <div class="row">
-          <div>
-            <label>Триггер (слово, символ, код, цифра…)</label>
-            <input type="text" id="rTrigger" placeholder="123 или video или #promo">
-          </div>
-          <div>
-            <label>Совпадение</label>
-            <select id="rMatch">
-              <option value="exact">Точное совпадение</option>
-              <option value="contains">Вход содержит триггер</option>
-            </select>
-          </div>
-          <div>
-            <label>Контент</label>
-            <select id="rType" onchange="onTypeChange('r')">
-              <option value="text">📄 Текст</option>
-              <option value="link">🔗 Ссылка</option>
-              <option value="nickname">👤 Ник</option>
-              <option value="media">🎬 Медиа-файл</option>
-            </select>
-          </div>
-        </div>
-        <label id="rContentLabel">Текст ответа</label>
-        <textarea id="rContent" placeholder="Что отправить клиенту"></textarea>
-        <select id="rMedia" class="hidden"></select>
-        <div class="actions">
-          <button id="rSave" onclick="saveRule()">Добавить правило</button>
-          <button class="sec hidden" id="rCancel" onclick="cancelRuleEdit()">Отмена</button>
-        </div>
-        <div class="msg" id="ruleFormMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2>🔑 Правила (сверху вниз — по приоритету)</h2>
+        <h2>🔑 Правила и ссылки для клиентов</h2>
+        <p class="hint">Клиент переходит по ссылке → бот узнаёт код и отправляет привязанный контент,
+        записывая клиента в CRM с меткой источника. Управление: <code>/rules</code>, <code>/addrule</code> в Telegram.</p>
         <table>
-          <thead><tr><th>#</th><th>Триггер</th><th>Режим</th><th>Контент</th><th>Ссылка для клиента</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Триггер</th><th>Статус</th><th>Режим</th><th>Контент</th><th>Ссылка для клиентов</th></tr></thead>
           <tbody id="rulesBody"></tbody>
         </table>
-        <div class="msg" id="rulesMsg"></div>
+      </div>
+    </div>
+
+    <!-- ================= CRM ================= -->
+    <div id="tab_crm" class="hidden">
+      <div class="card">
+        <h2>👥 CRM — база клиентов</h2>
+        <div class="msg ok" id="crmStats" style="margin:0 0 12px;"></div>
+        <p class="hint">Теги и рассылки — в Telegram: <code>/tag ID тег</code>, <code>/mail all текст</code>,
+        <code>/mail tag:тег текст</code>, <code>/mail src:источник текст</code>.</p>
+        <table>
+          <thead><tr><th>ID</th><th>Имя</th><th>Ник</th><th>Откуда</th><th>Теги</th><th>Сообщений</th><th>Последний визит</th></tr></thead>
+          <tbody id="crmBody"></tbody>
+        </table>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-let editingStageId = null;
-let editingRuleId = null;
-let botUsername = null;
 let mediaList = [];
-
-const TYPE_NAMES = { text: "📄 Текст", link: "🔗 Ссылка", nickname: "👤 Ник", media: "🎬 Медиа" };
-const CONTENT_LABELS = {
-  text: "Текст",
-  link: "Ссылка на файл (Яндекс Диск, Google Drive, MEGA; прямая ссылка на файл уйдёт вложением)",
-  nickname: "Ник в Telegram (@username)",
-  media: "Медиа-файл (выберите из списка)"
-};
 
 function $(id) { return document.getElementById(id); }
 function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -295,7 +211,7 @@ function showPanel() {
   loadAll();
 }
 function showTab(name) {
-  ["stages", "media", "rules"].forEach(t => {
+  ["stages", "media", "rules", "crm"].forEach(t => {
     $("tab_" + t).classList.toggle("hidden", t !== name);
     $("tabbtn_" + t).classList.toggle("active", t === name);
   });
@@ -318,351 +234,153 @@ async function doLogout() {
   showLogin();
 }
 
+const TYPE_NAMES = { text: "📄 Текст", link: "🔗 Ссылка", nickname: "👤 Ник", media: "🎬 Медиа" };
+
 async function loadStatus() {
   try {
     const s = await api("/api/status");
-    botUsername = s.bot ? s.bot.replace("@", "") : null;
     const up = Math.floor(s.uptime_sec / 60);
     $("statusLine").innerHTML =
       "Бот: <b>" + (s.bot || "подключение…") + "</b> · " +
       "этапов: <b>" + s.stages_enabled + "/" + s.stages_total + "</b> · " +
       "медиа: <b>" + (s.media_total || 0) + "</b> · " +
-      "слов: <b>" + (s.rules_total || 0) + "</b> · " +
+      "правил: <b>" + (s.rules_total || 0) + "</b> · " +
+      "клиентов: <b>" + (s.crm_total || 0) + "</b> · " +
       "аптайм: <b>" + up + " мин</b>";
   } catch (e) {}
 }
 
-// ---------- медиа ----------
+async function loadProxy() {
+  try {
+    const p = await api("/api/proxy");
+    $("proxyInput").value = p.proxy || "(прямое соединение)";
+  } catch (e) {}
+}
+
+async function loadStages() {
+  try {
+    const d = await api("/api/stages");
+    const tb = $("stagesBody");
+    tb.innerHTML = "";
+    if (!d.stages.length) {
+      tb.innerHTML = "<tr><td colspan='5' class='hint'>Этапов пока нет.</td></tr>";
+      return;
+    }
+    for (const s of d.stages) {
+      const tr = document.createElement("tr");
+      if (!s.enabled) tr.className = "off";
+      let cont;
+      if (s.content_type === "media") {
+        cont = s.media_name ? "🎬 " + esc(s.media_name) : "📎 файл не найден!";
+      } else {
+        cont = esc(s.content).replace(/\n/g, "<br>");
+      }
+      tr.innerHTML =
+        "<td>" + s.position + "</td>" +
+        "<td><span class='badge " + (s.enabled ? "on' >вкл" : "off' >выкл") + "</span></td>" +
+        "<td>" + (TYPE_NAMES[s.content_type] || s.content_type) + "</td>" +
+        "<td>" + (s.delay_seconds === 0 ? "сразу" : s.delay_seconds + " с") + "</td>" +
+        "<td class='content-cell'>" + cont + "</td>";
+      tb.appendChild(tr);
+    }
+  } catch (e) {}
+}
+
 async function loadMedia() {
   try {
     const d = await api("/api/media");
     mediaList = d.media;
-    renderMedia();
-    renderMediaSelects();
+    const tb = $("mediaBody");
+    tb.innerHTML = "";
+    if (!mediaList.length) {
+      tb.innerHTML = "<tr><td colspan='4' class='hint'>Файлов пока нет.</td></tr>";
+      return;
+    }
+    for (const m of mediaList) {
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + m.id + "</td><td>" + m.icon + " " + esc(m.name) + "</td>" +
+        "<td>" + esc(m.kind) + "</td><td>" + fmtSize(m.size) + "</td>";
+      tb.appendChild(tr);
+    }
   } catch (e) {}
 }
-function renderMedia() {
-  const tb = $("mediaBody");
-  tb.innerHTML = "";
-  if (!mediaList.length) {
-    tb.innerHTML = "<tr><td colspan='5' class='hint'>Файлов пока нет — загрузите первый выше.</td></tr>";
-    return;
-  }
-  for (const m of mediaList) {
-    const tr = document.createElement("tr");
-    tr.innerHTML =
-      "<td>" + m.icon + "</td>" +
-      "<td>" + esc(m.name) + "</td>" +
-      "<td>" + esc(m.kind) + "</td>" +
-      "<td>" + fmtSize(m.size) + "</td>" +
-      "<td class='btns'><button class='danger sm' onclick='delMedia(" + m.id + ", this)'>🗑</button></td>";
-    tb.appendChild(tr);
-  }
-}
-async function delMedia(id, btn) {
-  btn.disabled = true;
-  try {
-    await api("/api/media/" + id, { method: "DELETE" });
-    loadMedia();
-  } catch (e) {
-    showMsg("mediaListMsg", e.message, "err");
-    btn.disabled = false;
-  }
-}
-async function uploadMedia() {
-  const f = $("mediaFile").files[0];
-  if (!f) { showMsg("mediaMsg", "Выберите файл", "err"); return; }
-  showMsg("mediaMsg", "Загружаю…");
-  try {
-    const fd = new FormData();
-    fd.append("file", f);
-    await api("/api/media", { method: "POST", body: fd });
-    $("mediaFile").value = "";
-    showMsg("mediaMsg", "Загружено ✔", "ok");
-    loadMedia(); loadStatus();
-  } catch (e) {
-    showMsg("mediaMsg", e.message, "err");
-  }
-}
 
-// ---------- этапы ----------
-async function loadStages() {
-  const d = await api("/api/stages");
-  const tb = $("stagesBody");
-  tb.innerHTML = "";
-  if (!d.stages.length) {
-    tb.innerHTML = "<tr><td colspan='6' class='hint'>Этапов пока нет — добавьте первый.</td></tr>";
-    return;
-  }
-  for (const s of d.stages) {
-    const tr = document.createElement("tr");
-    if (!s.enabled) tr.className = "off";
-    let cont;
-    if (s.content_type === "media") {
-      const m = mediaList.find(x => x.id == s.content);
-      cont = (m ? m.icon + " " + esc(m.name) : "📎 файл не найден!");
-    } else {
-      cont = esc(s.content).replace(/\n/g, "<br>");
-    }
-    tr.innerHTML =
-      "<td>" + s.position + "</td>" +
-      "<td><span class='badge " + (s.enabled ? "on' >вкл" : "off' >выкл") + "</span></td>" +
-      "<td>" + (TYPE_NAMES[s.content_type] || s.content_type) + "</td>" +
-      "<td>" + (s.delay_seconds === 0 ? "сразу" : s.delay_seconds + " с") + "</td>" +
-      "<td class='content-cell'>" + cont + "</td>" +
-      "<td class='btns'>" +
-        "<button class='sec sm' onclick='startEdit(" + s.id + ")'>✏️</button>" +
-        "<button class='sec sm' onclick='moveStage(" + s.id + ", -1)'>⬆️</button>" +
-        "<button class='sec sm' onclick='moveStage(" + s.id + ", 1)'>⬇️</button>" +
-        "<button class='sec sm' onclick='toggleStage(" + s.id + ")'>🔁</button>" +
-        "<button class='danger sm' onclick='delStage(" + s.id + ")'>🗑</button>" +
-      "</td>";
-    tb.appendChild(tr);
-  }
-}
-
-function renderMediaSelects() {
-  for (const selId of ["fMedia", "rMedia"]) {
-    const sel = $(selId);
-    if (!sel) continue;
-    const prev = sel.value;
-    sel.innerHTML = mediaList.length
-      ? mediaList.map(m => "<option value='" + m.id + "'>" + m.icon + " " + esc(m.name) + "</option>").join("")
-      : "<option value=''>— сначала загрузите файл (вкладка Медиа) —</option>";
-    if (prev) sel.value = prev;
-  }
-}
-function onTypeChange(pfx) {
-  const type = $(pfx + "Type").value;
-  $(pfx + "ContentLabel").textContent = CONTENT_LABELS[type] || "Контент";
-  const isMedia = type === "media";
-  $(pfx + "Content").classList.toggle("hidden", isMedia);
-  $(pfx + "Media").classList.toggle("hidden", !isMedia);
-  const ph = { text: "Например: Привет! 👋", link: "https://disk.yandex.ru/d/...", nickname: "@username" };
-  $(pfx + "Content").placeholder = ph[type] || "";
-}
-function stageContentValue() {
-  return $("fType").value === "media" ? $("fMedia").value : $("fContent").value;
-}
-
-function cancelEdit() {
-  editingStageId = null;
-  $("formTitle").textContent = "➕ Добавить этап";
-  $("fSave").textContent = "Добавить этап";
-  $("fCancel").classList.add("hidden");
-  $("fDelay").value = 0;
-  $("fType").value = "text";
-  onTypeChange("f");
-  $("fContent").value = "";
-  showMsg("formMsg", "");
-}
-async function startEdit(id) {
-  const d = await api("/api/stages");
-  const s = d.stages.find(x => x.id === id);
-  if (!s) return;
-  editingStageId = id;
-  $("formTitle").textContent = "✏️ Редактирование этапа " + s.position;
-  $("fSave").textContent = "Сохранить изменения";
-  $("fCancel").classList.remove("hidden");
-  $("fDelay").value = s.delay_seconds;
-  $("fType").value = s.content_type;
-  onTypeChange("f");
-  $("fContent").value = s.content;
-  if (s.content_type === "media") $("fMedia").value = s.content;
-  showMsg("formMsg", "");
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-async function saveStage() {
-  showMsg("formMsg", "");
-  const payload = {
-    delay_seconds: parseInt($("fDelay").value || "0", 10),
-    content_type: $("fType").value,
-    content: stageContentValue()
-  };
-  try {
-    if (editingStageId === null) {
-      await api("/api/stages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    } else {
-      await api("/api/stages/" + editingStageId, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    }
-    cancelEdit();
-    await Promise.all([loadStages(), loadStatus()]);
-    showMsg("formMsg", "Сохранено ✔", "ok");
-  } catch (e) {
-    showMsg("formMsg", e.message, "err");
-  }
-}
-async function moveStage(id, dir) {
-  try { await api("/api/stages/" + id + "/move", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ direction: dir }) }); loadStages(); }
-  catch (e) { showMsg("listMsg", e.message, "err"); }
-}
-async function toggleStage(id) {
-  try { await api("/api/stages/" + id + "/toggle", { method: "POST" }); loadStages(); }
-  catch (e) { showMsg("listMsg", e.message, "err"); }
-}
-async function delStage(id) {
-  if (!confirm("Удалить этап?")) return;
-  try {
-    await api("/api/stages/" + id, { method: "DELETE" });
-    if (editingStageId === id) cancelEdit();
-    loadStages();
-  } catch (e) { showMsg("listMsg", e.message, "err"); }
-}
-
-async function runTest(live) {
-  showMsg("testMsg", "");
-  const chat_id = parseInt($("testChat").value, 10);
-  if (!chat_id) { showMsg("testMsg", "Введите Chat ID", "err"); return; }
-  try {
-    await api("/api/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id, live }) });
-    showMsg("testMsg", live
-      ? "Тест запущен. Если ничего не пришло — смотрите bot_data/admin.log."
-      : "Отправлено ✔ — проверьте чат в Telegram", "ok");
-  } catch (e) {
-    showMsg("testMsg", e.message, "err");
-  }
-}
-
-// ---------- правила (ключевые слова) ----------
 async function loadRules() {
-  const d = await api("/api/rules");
-  const tb = $("rulesBody");
-  tb.innerHTML = "";
-  if (!d.rules.length) {
-    tb.innerHTML = "<tr><td colspan='6' class='hint'>Правил пока нет — добавьте первое.</td></tr>";
-    return;
-  }
-  for (const r of d.rules) {
-    const tr = document.createElement("tr");
-    if (!r.enabled) tr.className = "off";
-    let cont;
-    if (r.content_type === "media") {
-      const m = mediaList.find(x => x.id == r.content);
-      cont = (m ? m.icon + " " + esc(m.name) : "📎 файл не найден!");
-    } else {
-      cont = esc(r.content).replace(/\n/g, "<br>");
+  try {
+    const d = await api("/api/rules");
+    const tb = $("rulesBody");
+    tb.innerHTML = "";
+    if (!d.rules.length) {
+      tb.innerHTML = "<tr><td colspan='6' class='hint'>Правил пока нет. Создать: /addrule в Telegram.</td></tr>";
+      return;
     }
-    const link = "https://t.me/" + (botUsername || "имя_бота") + "?start=" + encodeURIComponent(r.trigger);
-    tr.innerHTML =
-      "<td>" + r.position + "</td>" +
-      "<td><b>" + esc(r.trigger) + "</b><br><span class='badge'>" + (r.enabled ? "вкл" : "выкл") + "</span></td>" +
-      "<td>" + (r.match === "exact" ? "точно" : "содержит") + "</td>" +
-      "<td class='content-cell'>" + cont + "</td>" +
-      "<td class='content-cell'><div class='linkrow'><input readonly value='" + esc(link) + "' onclick='this.select()'>&nbsp;<button class='sec sm' onclick=\"navigator.clipboard.writeText('" + esc(link) + "')\">📋</button></div></td>" +
-      "<td class='btns'>" +
-        "<button class='sec sm' onclick='startRuleEdit(" + r.id + ")'>✏️</button>" +
-        "<button class='sec sm' onclick='moveRule(" + r.id + ", -1)'>⬆️</button>" +
-        "<button class='sec sm' onclick='moveRule(" + r.id + ", 1)'>⬇️</button>" +
-        "<button class='sec sm' onclick='toggleRule(" + r.id + ")'>🔁</button>" +
-        "<button class='danger sm' onclick='delRule(" + r.id + ")'>🗑</button>" +
-      "</td>";
-    tb.appendChild(tr);
-  }
-}
-function cancelRuleEdit() {
-  editingRuleId = null;
-  $("ruleFormTitle").textContent = "➕ Добавить правило";
-  $("rSave").textContent = "Добавить правило";
-  $("rCancel").classList.add("hidden");
-  $("rTrigger").value = "";
-  $("rMatch").value = "exact";
-  $("rType").value = "text";
-  onTypeChange("r");
-  $("rContent").value = "";
-  showMsg("ruleFormMsg", "");
-}
-async function startRuleEdit(id) {
-  const d = await api("/api/rules");
-  const r = d.rules.find(x => x.id === id);
-  if (!r) return;
-  editingRuleId = id;
-  $("ruleFormTitle").textContent = "✏️ Редактирование правила " + r.position;
-  $("rSave").textContent = "Сохранить изменения";
-  $("rCancel").classList.remove("hidden");
-  $("rTrigger").value = r.trigger;
-  $("rMatch").value = r.match;
-  $("rType").value = r.content_type;
-  onTypeChange("r");
-  $("rContent").value = r.content;
-  if (r.content_type === "media") $("rMedia").value = r.content;
-  showMsg("ruleFormMsg", "");
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-function ruleContentValue() {
-  return $("rType").value === "media" ? $("rMedia").value : $("rContent").value;
-}
-async function saveRule() {
-  showMsg("ruleFormMsg", "");
-  const payload = {
-    trigger: $("rTrigger").value,
-    match: $("rMatch").value,
-    content_type: $("rType").value,
-    content: ruleContentValue()
-  };
-  try {
-    if (editingRuleId === null) {
-      await api("/api/rules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    } else {
-      await api("/api/rules/" + editingRuleId, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    for (const r of d.rules) {
+      const tr = document.createElement("tr");
+      if (!r.enabled) tr.className = "off";
+      let cont;
+      if (r.content_type === "media") {
+        const m = mediaList.find(x => x.id == r.content);
+        cont = (m ? m.icon + " " + esc(m.name) : "📎 файл не найден!");
+      } else {
+        cont = esc(r.content).replace(/\n/g, "<br>");
+      }
+      tr.innerHTML =
+        "<td>" + r.position + "</td>" +
+        "<td><b>" + esc(r.trigger) + "</b></td>" +
+        "<td><span class='badge " + (r.enabled ? "on' >вкл" : "off' >выкл") + "</span></td>" +
+        "<td>" + (r.match === "exact" ? "точно" : "содержит") + "</td>" +
+        "<td class='content-cell'>" + cont + "</td>" +
+        "<td class='content-cell'><code>" + esc(r.link) + "</code></td>";
+      tb.appendChild(tr);
     }
-    cancelRuleEdit();
-    await Promise.all([loadRules(), loadStatus()]);
-    showMsg("ruleFormMsg", "Сохранено ✔", "ok");
-  } catch (e) {
-    showMsg("ruleFormMsg", e.message, "err");
-  }
-}
-async function moveRule(id, dir) {
-  try { await api("/api/rules/" + id + "/move", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ direction: dir }) }); loadRules(); }
-  catch (e) { showMsg("rulesMsg", e.message, "err"); }
-}
-async function toggleRule(id) {
-  try { await api("/api/rules/" + id + "/toggle", { method: "POST" }); loadRules(); }
-  catch (e) { showMsg("rulesMsg", e.message, "err"); }
-}
-async function delRule(id) {
-  if (!confirm("Удалить правило?")) return;
-  try {
-    await api("/api/rules/" + id, { method: "DELETE" });
-    if (editingRuleId === id) cancelRuleEdit();
-    loadRules();
-  } catch (e) { showMsg("rulesMsg", e.message, "err"); }
-}
-
-// ---------- прокси ----------
-async function loadProxy() {
-  try {
-    const p = await api("/api/proxy");
-    if (document.activeElement !== $("proxyInput")) $("proxyInput").value = p.proxy || "";
   } catch (e) {}
 }
-async function saveProxy(save) {
-  showMsg("proxyMsg", "Проверяю…");
+
+async function loadCrm() {
   try {
-    const payload = { proxy: $("proxyInput").value };
-    const r = save
-      ? await api("/api/proxy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-      : await api("/api/check_telegram", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (r.ok) {
-      showMsg("proxyMsg", "Соединение установлено через " + r.via + " — бот " + r.bot + " ✔", "ok");
-      if (save) loadProxy();
-    } else {
-      showMsg("proxyMsg", "Не подключилось (" + r.via + "): " + r.error, "err");
+    const d = await api("/api/crm");
+    const stats = [];
+    stats.push("Всего клиентов: <b>" + d.total + "</b>");
+    if (d.sources && Object.keys(d.sources).length) {
+      stats.push("По источникам: " + Object.entries(d.sources).map(([k, v]) => esc(k) + ": " + v).join(", "));
     }
-  } catch (e) {
-    showMsg("proxyMsg", e.message, "err");
-  }
+    if (d.tags && Object.keys(d.tags).length) {
+      stats.push("По тегам: " + Object.entries(d.tags).map(([k, v]) => "#" + esc(k) + ": " + v).join(", "));
+    }
+    $("crmStats").innerHTML = stats.join("<br>");
+    const tb = $("crmBody");
+    tb.innerHTML = "";
+    if (!d.clients.length) {
+      tb.innerHTML = "<tr><td colspan='7' class='hint'>Клиентов пока нет — они появятся после первого /start.</td></tr>";
+      return;
+    }
+    for (const u of d.clients) {
+      const tr = document.createElement("tr");
+      if (u.blocked) tr.className = "off";
+      const tags = u.tags.length ? u.tags.map(t => "<span class='badge'>#" + esc(t) + "</span> ").join("") : "—";
+      tr.innerHTML =
+        "<td>" + u.id + (u.blocked ? " <span class='badge bad'>заблокировал</span>" : "") + "</td>" +
+        "<td>" + esc(u.name || "—") + "</td>" +
+        "<td>" + (u.username ? "@" + esc(u.username) : "—") + "</td>" +
+        "<td>" + (u.source ? "<span class='badge on'>" + esc(u.source) + "</span>" : "—") + "</td>" +
+        "<td>" + tags + "</td>" +
+        "<td>" + u.msgs + "</td>" +
+        "<td>" + esc(u.last_seen) + "</td>";
+      tb.appendChild(tr);
+    }
+  } catch (e) {}
 }
 
 async function loadAll() {
-  await Promise.all([loadStatus(), loadStages(), loadMedia(), loadRules(), loadProxy()]);
+  await Promise.all([loadStatus(), loadProxy(), loadStages(), loadMedia(), loadRules(), loadCrm()]);
 }
 
 api("/api/stages")
   .then(() => showPanel())
   .catch(() => showLogin());
 
-setInterval(() => { if (!$("panelView").classList.contains("hidden")) loadStatus(); }, 60000);
+setInterval(() => { if (!$("panelView").classList.contains("hidden")) loadAll(); }, 30000);
 </script>
 </body>
 </html>

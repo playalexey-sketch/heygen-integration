@@ -1,7 +1,6 @@
-"""Тесты веб-панели: логин, CRUD этапов, порядок, вкл/выкл, тест-отправка.
+"""Тесты веб-панели (read-only): логин, статус, этапы, медиа, правила, CRM.
 
 Запуск:  python tests/web_test.py
-Нужен httpx (в dev):  pip install httpx
 """
 from __future__ import annotations
 
@@ -33,6 +32,10 @@ class FakeBot:
         self.sent.append(("document", chat_id, document, kw))
         return None
 
+    async def send_photo(self, chat_id, photo, **kw):
+        self.sent.append(("photo", chat_id, photo, kw))
+        return None
+
     async def me(self):
         class _Me:
             username = "testbot"
@@ -47,166 +50,85 @@ def run() -> None:
             web_password="testpass",
             data_dir=tmp / "data",
         )
+        cfg.data_dir.mkdir(parents=True, exist_ok=True)
         storage = StageStorage(tmp / "stages.json")
         from content import ContentStorage
-        content = ContentStorage(tmp / "content.json")
+        from crm import CrmStorage
+        content = ContentStorage(tmp / "data" / "content.json")
+        crm = CrmStorage(tmp / "data" / "crm.json")
         bot = FakeBot()
         admin = AdminService(frozenset({1}))
         sequencer = StageSequencer(storage, content)
-        app = create_app(cfg, storage, content, bot, sequencer, admin, started_at=time.time())
+        app = create_app(cfg, storage, content, crm, bot, sequencer, admin, started_at=time.time())
+
+        # данные, которые "сделал бот" в своём процессе:
+        storage.add(5, "text", "Привет из бота")
+        content.add_rule("123", "text", "по коду", "exact")
+        content.add_rule("vk", "link", "https://vk.com/abc", "exact")
 
         with TestClient(app) as client:
             # --- страница и health ---
             r = client.get("/")
-            assert r.status_code == 200 and "Панель" in r.text
+            assert r.status_code == 200 and "CRM" in r.text
             assert client.get("/api/health").json() == {"ok": True}
             print("страница + health: OK")
 
-            # --- без логина доступ закрыт ---
+            # --- без логина 401 ---
             assert client.get("/api/stages").status_code == 401
+            assert client.get("/api/crm").status_code == 401
             print("без логина 401: OK")
 
             # --- логин ---
             assert client.post("/api/login", json={"password": "bad"}).status_code == 401
-            r = client.post("/api/login", json={"password": "testpass"})
-            assert r.status_code == 200
+            assert client.post("/api/login", json={"password": "testpass"}).status_code == 200
             print("логин: OK")
 
             # --- статус ---
             st = client.get("/api/status").json()
-            assert st["bot"] == "@testbot" and "stages_total" in st
+            assert st["bot"] == "@testbot" and "crm_total" in st and "rules_total" in st
             print("статус: OK")
 
-            # --- список (стартовое демо: 2 этапа) ---
+            # --- этапы (read-only) ---
             stages = client.get("/api/stages").json()["stages"]
-            assert len(stages) == 2 and stages[0]["position"] == 1
+            assert len(stages) == 3 and stages[-1]["content"] == "Привет из бота"
+            # мутаций нет:
+            assert client.post("/api/stages", json={"delay_seconds": 0, "content_type": "text", "content": "x"}).status_code == 405
+            print("этапы read-only: OK")
 
-            # --- валидация ---
-            r = client.post("/api/stages", json={"delay_seconds": "abc", "content_type": "text", "content": "x"})
-            assert r.status_code == 400
-            r = client.post("/api/stages", json={"delay_seconds": 0, "content_type": "link", "content": "не ссылка"})
-            assert r.status_code == 400
-            r = client.post("/api/stages", json={"delay_seconds": 0, "content_type": "nickname", "content": "ab"})
-            assert r.status_code == 400
-            print("валидация: OK")
+            # --- медиа (read-only) ---
+            media = client.get("/api/media").json()
+            assert media["media"] == []
+            assert client.post("/api/media", files={"file": ("a.txt", b"x")}).status_code == 405
+            print("медиа read-only: OK")
 
-            # --- добавление ---
-            r = client.post(
-                "/api/stages",
-                json={"delay_seconds": 5, "content_type": "link", "content": "https://disk.yandex.ru/d/xyz"},
-            )
-            assert r.status_code == 200 and r.json()["content_type"] == "link"
-            new_id = r.json()["id"]
+            # --- правила (read-only, со ссылками) ---
+            rules = client.get("/api/rules").json()
+            assert len(rules["rules"]) == 2
+            assert rules["rules"][0]["link"].endswith("?start=123")
+            assert client.post("/api/rules", json={"trigger": "x", "content_type": "text", "content": "y"}).status_code == 405
+            print("правила read-only + ссылки: OK")
 
-            r = client.post(
-                "/api/stages",
-                json={"delay_seconds": 10, "content_type": "nickname", "content": "@support_team"},
-            )
-            assert r.status_code == 200 and r.json()["content"] == "@support_team"
-            nick_id = r.json()["id"]
+            # --- CRM ---
+            class U:
+                id = 555
+                username = "ivan"
+                first_name = "Иван"
+                last_name = ""
+            crm.upsert(U(), source="youtube")
+            crm.touch(555)
+            d = client.get("/api/crm").json()
+            assert d["total"] == 1
+            assert d["sources"]["youtube"] == 1
+            assert d["clients"][0]["username"] == "ivan"
+            assert d["clients"][0]["source"] == "youtube"
+            assert d["clients"][0]["msgs"] == 1
+            print("CRM: OK")
 
-            # --- редактирование ---
-            r = client.patch(
-                f"/api/stages/{new_id}",
-                json={"delay_seconds": 7, "content_type": "text", "content": "Привет из веба"},
-            )
-            assert r.status_code == 200 and r.json()["content"] == "Привет из веба"
-            got = client.get("/api/stages").json()["stages"]
-            assert [s for s in got if s["id"] == new_id][0]["delay_seconds"] == 7
-
-            # --- порядок ---
-            first = client.get("/api/stages").json()["stages"][0]
-            r = client.post(f"/api/stages/{first['id']}/move", json={"direction": 1})
-            assert r.status_code == 200
-            after = client.get("/api/stages").json()["stages"]
-            assert after[1]["id"] == first["id"]
-            # в конце — нельзя опустить
-            last = after[-1]
-            r = client.post(f"/api/stages/{last['id']}/move", json={"direction": 1})
-            assert r.status_code == 400
-            print("CRUD + порядок: OK")
-
-            # --- вкл/выкл ---
-            r = client.post(f"/api/stages/{nick_id}/toggle")
-            assert r.status_code == 200 and r.json()["enabled"] is False
-            assert len([s for s in client.get("/api/stages").json()["stages"] if s["enabled"]]) == len(client.get("/api/stages").json()["stages"]) - 1
-            client.post(f"/api/stages/{nick_id}/toggle")
-            print("вкл/выкл: OK")
-
-            # --- тест-отправка в чат ---
-            r = client.post("/api/test", json={"chat_id": "не число"})
-            assert r.status_code == 400
-            r = client.post("/api/test", json={"chat_id": 777, "live": False})
-            assert r.status_code == 200
-            time.sleep(0.5)  # фоновая задача отправки
-            assert any(k == "message" and cid == 777 for k, cid, *_ in bot.sent), bot.sent
-            assert any("Тест" in t for _, _, t, _ in bot.sent), "тестовые сообщения не отправлены"
-            print("тест-отправка: OK")
-
-            # --- удаление ---
-            r = client.delete(f"/api/stages/{nick_id}")
-            assert r.status_code == 200
-            assert client.delete(f"/api/stages/{nick_id}").status_code == 404
-            assert client.get("/api/stages").json()["stages"] and all(
-                s["id"] != nick_id for s in client.get("/api/stages").json()["stages"]
-            )
-            print("удаление: OK")
-
-            # --- прокси: чтение/сохранение ---
+            # --- прокси (read-only) ---
             p = client.get("/api/proxy").json()
-            assert p["proxy"] == "" and p["file_exists"] is False
-            r = client.post("/api/proxy", json={"proxy": "socks5://127.0.0.1:1"}).json()
-            # локально соединения нет: ok=False, но прокси сохранён
-            assert r["ok"] is False
-            assert client.get("/api/proxy").json()["proxy"] == "socks5://127.0.0.1:1"
-            # очистка
-            client.post("/api/proxy", json={"proxy": ""})
-            assert client.get("/api/proxy").json()["proxy"] == ""
-            print("прокси: OK")
-
-            # --- check_telegram с явно указанным прокси (локально — ошибка) ---
-            r = client.post("/api/check_telegram", json={"proxy": "socks5://127.0.0.1:1"}).json()
-            assert r["ok"] is False and r["error"]
-            print("check_telegram: OK")
-
-            # --- медиа: загрузка ---
-            files = {"file": ("hello.txt", b"hello world", "text/plain")}
-            r = client.post("/api/media", files=files).json()
-            assert r["ok" ] is False if "ok" in r else True
-            assert r["kind"] == "document" and r["name"] == "hello.txt"
-            media_id = r["id"]
-            r = client.get("/api/media").json()
-            assert len(r["media"]) == 1 and r["media"][0]["id"] == media_id
-
-            # этап с медиа
-            r = client.post("/api/stages", json={"delay_seconds": 0, "content_type": "media", "content": str(media_id)}).json()
-            assert r["content_type"] == "media"
-            # а несуществующего медиа быть не может
-            r = client.post("/api/stages", json={"delay_seconds": 0, "content_type": "media", "content": "9999"})
-            assert r.status_code == 400
-
-            # --- правила ---
-            r = client.post("/api/rules", json={"trigger": "123", "match": "exact", "content_type": "text", "content": "по коду"}).json()
-            rule_id = r["id"]
-            client.post("/api/rules", json={"trigger": "key", "match": "contains", "content_type": "media", "content": str(media_id)})
-            rules = client.get("/api/rules").json()["rules"]
-            assert len(rules) == 2 and rules[0]["trigger"] == "123"
-
-            # вкл/выкл и порядок
-            r = client.post(f"/api/rules/{rule_id}/toggle").json()
-            assert r["enabled"] is False
-            client.post(f"/api/rules/{rule_id}/toggle")
-            r = client.post(f"/api/rules/{rule_id}/move", json={"direction": 1}).json()
-            assert r["ok"] is True
-
-            # редактирование
-            r = client.patch(f"/api/rules/{rule_id}", json={"trigger": "456", "content_type": "text", "content": "новое"}).json()
-            assert r["trigger"] == "456"
-
-            # удаление медиа и правила
-            assert client.delete(f"/api/rules/{rule_id}").json() == {"ok": True}
-            assert client.delete(f"/api/media/{media_id}").json() == {"ok": True}
-            assert client.get("/api/media").json()["media"] == []
+            assert "proxy" in p
+            assert client.post("/api/proxy", json={"proxy": "socks5://127.0.0.1:1"}).status_code == 405
+            print("прокси read-only: OK")
 
             # --- logout ---
             assert client.post("/api/logout").status_code == 200

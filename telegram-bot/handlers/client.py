@@ -18,6 +18,7 @@ from aiogram.filters.command import CommandObject
 from aiogram.types import CallbackQuery, Message
 
 from content import ContentStorage
+from crm import CrmStorage
 from sender import StageSequencer, send_rule_content
 from services import AdminService
 
@@ -56,6 +57,7 @@ async def cmd_start(
     sequencer: StageSequencer,
     admin: AdminService,
     content: ContentStorage,
+    crm: CrmStorage,
 ):
     if not message.from_user:
         return
@@ -67,14 +69,21 @@ async def cmd_start(
         await message.answer("⚙️ Вы администратор бота. Для управления этапами: /admin")
         return
 
+    # Код из ссылки входа: t.me/бот?start=КОД  ->  command.args == "КОД"
+    code = (command.args or "").strip()
+
+    # CRM: записываем клиента + откуда он пришёл
+    try:
+        crm.upsert(message.from_user, source=code or None)
+    except Exception:
+        log.exception("Не удалось записать клиента в CRM")
+
     restarted = sequencer.start(message.bot, message.chat.id)
     if restarted:
         await message.answer("🔁 Перезапускаю последовательность заново…")
     else:
         await message.answer("👌 Готово! Сообщения придут по очереди, с установленными задержками.")
 
-    # Код из ссылки входа: t.me/бот?start=КОД  ->  command.args == "КОД"
-    code = (command.args or "").strip()
     if code:
         asyncio.create_task(_apply_rules(message.bot, message.chat.id, code, content))
 
@@ -84,6 +93,7 @@ async def cb_restart(
     cb: CallbackQuery,
     sequencer: StageSequencer,
     admin: AdminService,
+    crm: CrmStorage,
 ):
     if cb.message is None:
         await cb.answer("Обновите сообщение и попробуйте снова")
@@ -96,6 +106,10 @@ async def cb_restart(
     sequencer.start(cb.bot, cb.message.chat.id)
     await cb.answer()
     await cb.message.answer("🔁 Отправляю последовательность заново…")
+    try:
+        crm.touch(cb.from_user.id)
+    except Exception:
+        pass
 
 
 @router.message(Command("help"))
@@ -118,11 +132,15 @@ async def unknown_command(message: Message, admin: AdminService):
 
 
 @router.message(~IsAdmin(), F.text & ~F.text.startswith("/"))
-async def client_text(message: Message, admin: AdminService, content: ContentStorage):
+async def client_text(message: Message, admin: AdminService, content: ContentStorage, crm: CrmStorage):
     if not message.from_user or admin.is_admin(message.from_user.id):
         return
     if message.chat.type != "private":
         return
+    try:
+        crm.touch(message.from_user.id)
+    except Exception:
+        pass
     # Слушаем, что ввёл клиент: если это ключевое слово — отправляем привязанный контент
     if await _apply_rules(message.bot, message.chat.id, message.text or "", content):
         return

@@ -20,6 +20,7 @@ from app_common import apply_proxy, check_bot_online, load_proxy, setup
 from config import Config
 from handlers.admin import router as admin_router
 from handlers.client import router as client_router
+from handlers.manager import router as manager_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,15 +48,16 @@ async def poll_forever(bot: Bot, dp: Dispatcher, cfg: Config) -> None:
 
 async def main() -> None:
     cfg = Config.from_env()
-    storage, admin, sequencer, bot, content = setup(cfg, log_name="bot.log")
+    storage, admin, sequencer, bot, content, crm = setup(cfg, log_name="bot.log")
 
-    dp = Dispatcher(stages=storage, content=content, admin=admin, sequencer=sequencer)
-    dp.include_router(admin_router)   # Telegram-команды /admin тоже работают
+    dp = Dispatcher(stages=storage, content=content, crm=crm, admin=admin, sequencer=sequencer, cfg=cfg)
+    dp.include_router(admin_router)      # Telegram-команды /admin (этапы, тесты)
+    dp.include_router(manager_router)    # правила/ссылки, медиа, прокси, CRM, рассылки
     dp.include_router(client_router)
 
-    log.info("Бот запущен. Этапов: %d (включено: %d), медиа: %d, ключевых слов: %d. Файл: %s",
+    log.info("Бот запущен. Этапов: %d (включено: %d), медиа: %d, ключевых слов: %d, клиентов в CRM: %d. Файл: %s",
              len(storage.all()), len(storage.ordered()), len(content.all_media()),
-             len(content.all_rules()), cfg.stages_path)
+             len(content.all_rules()), len(crm.all()), cfg.stages_path)
     if not cfg.admin_ids:
         log.warning("ADMIN_ID не задан: первым админом в Telegram станет тот, "
                     "кто пришлёт /admin. Веб-админка защищена паролем.")

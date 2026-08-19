@@ -39,6 +39,8 @@ class OfflineBot(Bot):
 
     async def __call__(self, method, *, request_timeout=None):
         name = type(method).__name__
+        if name == "GetMe":
+            return User(id=123456789, is_bot=True, first_name="intbot", username="intbot")
         if name == "SendMessage":
             self.sent.append(
                 ("message", method.chat_id, method.text, {"reply_markup": method.reply_markup})
@@ -55,6 +57,11 @@ class OfflineBot(Bot):
             self.sent.append(("edit", target, method.text, {}))
             return True
         raise RuntimeError(f"Непредвиденный метод Telegram API: {name}")
+
+    async def download(self, file, destination=None, **kw):
+        if destination is not None:
+            Path(destination).write_bytes(b"fake-file")
+        return None
 
 
 def mk_user(uid: int) -> User:
@@ -105,12 +112,21 @@ async def run() -> None:
         admin = AdminService(frozenset())  # режим «открыт» — первый /admin станет админом
         sequencer = StageSequencer(storage)
         bot = OfflineBot()
+        bot._me = User(id=123456789, is_bot=True, first_name="testbot", username="intbot")
 
         from content import ContentStorage
+        from crm import CrmStorage
         content = ContentStorage(Path(tmp) / "content.json")
         content.add_rule("777", "text", "Привет по коду 777!")
-        dp = Dispatcher(stages=storage, content=content, admin=admin, sequencer=sequencer)
+        crm = CrmStorage(Path(tmp) / "crm.json")
+        from config import Config
+        from handlers.manager import router as manager_router
+        cfg = Config(bot_token="123:TEST", data_dir=Path(tmp) / "data")
+        dp = Dispatcher(
+            stages=storage, content=content, crm=crm, admin=admin, sequencer=sequencer, cfg=cfg
+        )
         dp.include_router(admin_router)
+        dp.include_router(manager_router)
         dp.include_router(client_router)
 
         # ---------- 1. клиент: /start -> последовательность ----------
@@ -184,6 +200,55 @@ async def run() -> None:
         await dp.feed_update(bot, upd_message(111, 100, "просто текст"))
         assert any("/admin" in t for t in texts(bot, 100)[-1:])
         print("10. админу подсказка про /admin: OK")
+
+        # ---------- 11. /rules: список + готовые ссылки ----------
+        content.add_rule("promo", "text", "Промо-подарок", "exact")
+        await dp.feed_update(bot, upd_message(111, 100, "/rules"))
+        t11 = texts(bot, 100)[-1]
+        assert "https://t.me/intbot?start=promo" in t11, "нет ссылки для правила"
+        assert "intbot?start=youtube" in t11 and "intbot?start=vk" in t11, "нет соц-ссылок"
+        print("11. /rules с генерацией ссылок: OK")
+
+        # ---------- 12. /addrule: полный мастер ----------
+        await dp.feed_update(bot, upd_message(111, 100, "/addrule"))
+        await dp.feed_update(bot, upd_message(111, 100, "500"))
+        await dp.feed_update(bot, upd_callback(111, 100, "rmatch:exact"))
+        await dp.feed_update(bot, upd_callback(111, 100, "rtype:link"))
+        await dp.feed_update(bot, upd_message(111, 100, "https://disk.yandex.ru/d/new"))
+        r500 = content.get_rule(content.find_rule("500").id)
+        assert r500 is not None and r500.content == "https://disk.yandex.ru/d/new"
+        assert any("https://t.me/intbot?start=500" in t for t in texts(bot, 100))
+        print("12. мастер /addrule: OK")
+
+        # ---------- 13. /upmedia: загрузка файла из Telegram ----------
+        from aiogram.types import Document
+        await dp.feed_update(bot, upd_message(111, 100, "/upmedia"))
+        doc_msg = Message(
+            message_id=99, date=datetime.now(), chat=Chat(id=100, type="private"),
+            from_user=mk_user(111),
+            document=Document(file_id="doc123", file_unique_id="uniq1", file_name="report.pdf"),
+        )
+        await dp.feed_update(bot, Update(update_id=77, message=doc_msg))
+        assert content.all_media(), "медиа не сохранилось"
+        assert any("report.pdf" in t for t in texts(bot, 100))
+        print("13. /upmedia загрузка медиа: OK")
+
+        # ---------- 14. /crm и /mail ----------
+        await dp.feed_update(bot, upd_message(111, 100, "/crm"))
+        assert any("CRM" in t for t in texts(bot, 100)[-1:])
+        n = len(bot.sent)
+        await dp.feed_update(bot, upd_message(111, 100, "/mail all Проверка рассылки"))
+        await asyncio.sleep(1.0)
+        got = [x[2] for x in bot.sent[n:] if x[0] == "message"]
+        assert "Проверка рассылки" in got, "рассылка не ушла клиенту"
+        assert any("доставлено" in t for t in got), "нет отчёта"
+        print("14. /crm + /mail рассылка: OK")
+
+        # ---------- 15. /setproxy ----------
+        await dp.feed_update(bot, upd_message(111, 100, "/setproxy socks5://127.0.0.1:10808"))
+        assert cfg.proxy_path.exists() and "10808" in cfg.proxy_path.read_text()
+        assert any("Прокси обновлён" in t for t in texts(bot, 100)[-1:])
+        print("15. /setproxy: OK")
 
     print("\nИнтеграционный тест пройден ✅")
 
