@@ -331,7 +331,12 @@ async function runTest(live) {
   if (!chat_id) { showMsg("testMsg", "Введите Chat ID", "err"); return; }
   try {
     await api("/api/test", { method: "POST", body: JSON.stringify({ chat_id, live }) });
-    showMsg("testMsg", "Отправляю в чат " + chat_id + "… (проверьте Telegram)", "ok");
+    if (live) {
+      showMsg("testMsg", "Тест запущен. Если ничего не пришло — смотрите bot_data/admin.log " +
+        "(самая частая причина: у бота нет соединения с Telegram).", "ok");
+    } else {
+      showMsg("testMsg", "Отправлено ✔ — проверьте чат в Telegram", "ok");
+    }
   } catch (e) {
     showMsg("testMsg", e.message, "err");
   }

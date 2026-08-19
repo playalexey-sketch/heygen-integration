@@ -212,14 +212,32 @@ def create_app(
             raise HTTPException(400, "chat_id — числовой ID чата")
         live = bool(b.get("live", False))
 
+        if not live:
+            # Быстрый тест — выполняем сразу и честно сообщаем результат,
+            # в т.ч. «нет связи с Telegram».
+            try:
+                await run_test(bot, chat_id, storage, live=False)
+            except Exception as e:
+                log.exception("Тест сценария в чат %s не удался", chat_id)
+                msg = str(e)
+                if "Cannot connect" in msg or "timeout" in msg.lower():
+                    msg = (
+                        "Не удалось отправить: нет соединения с Telegram "
+                        "(машина, где запущен бот, не может достичь api.telegram.org — "
+                        "блокировка/VPN). Панель работает, но сообщения доставит бот, "
+                        "только запущенный на машине с доступом к Telegram."
+                    )
+                raise HTTPException(502, msg)
+            return {"ok": True, "live": False}
+
         async def _run():
             try:
-                await run_test(bot, chat_id, storage, live=live)
+                await run_test(bot, chat_id, storage, live=True)
             except Exception:
-                log.exception("Тест сценария в чат %s не удался", chat_id)
+                log.exception("Тест сценария в чат %s не удался (см. admin.log)", chat_id)
 
         asyncio.create_task(_run())
-        return {"ok": True, "live": live}
+        return {"ok": True, "live": True}
 
     # --- страница ---
 
