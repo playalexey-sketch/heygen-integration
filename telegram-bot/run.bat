@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 rem Одной командой: зависимости + запуск бота (Windows)
 rem
 rem   run.bat
