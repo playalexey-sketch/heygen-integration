@@ -48,10 +48,12 @@ def run() -> None:
             data_dir=tmp / "data",
         )
         storage = StageStorage(tmp / "stages.json")
+        from content import ContentStorage
+        content = ContentStorage(tmp / "content.json")
         bot = FakeBot()
         admin = AdminService(frozenset({1}))
-        sequencer = StageSequencer(storage)
-        app = create_app(cfg, storage, bot, sequencer, admin, started_at=time.time())
+        sequencer = StageSequencer(storage, content)
+        app = create_app(cfg, storage, content, bot, sequencer, admin, started_at=time.time())
 
         with TestClient(app) as client:
             # --- страница и health ---
@@ -166,6 +168,45 @@ def run() -> None:
             r = client.post("/api/check_telegram", json={"proxy": "socks5://127.0.0.1:1"}).json()
             assert r["ok"] is False and r["error"]
             print("check_telegram: OK")
+
+            # --- медиа: загрузка ---
+            files = {"file": ("hello.txt", b"hello world", "text/plain")}
+            r = client.post("/api/media", files=files).json()
+            assert r["ok" ] is False if "ok" in r else True
+            assert r["kind"] == "document" and r["name"] == "hello.txt"
+            media_id = r["id"]
+            r = client.get("/api/media").json()
+            assert len(r["media"]) == 1 and r["media"][0]["id"] == media_id
+
+            # этап с медиа
+            r = client.post("/api/stages", json={"delay_seconds": 0, "content_type": "media", "content": str(media_id)}).json()
+            assert r["content_type"] == "media"
+            # а несуществующего медиа быть не может
+            r = client.post("/api/stages", json={"delay_seconds": 0, "content_type": "media", "content": "9999"})
+            assert r.status_code == 400
+
+            # --- правила ---
+            r = client.post("/api/rules", json={"trigger": "123", "match": "exact", "content_type": "text", "content": "по коду"}).json()
+            rule_id = r["id"]
+            client.post("/api/rules", json={"trigger": "key", "match": "contains", "content_type": "media", "content": str(media_id)})
+            rules = client.get("/api/rules").json()["rules"]
+            assert len(rules) == 2 and rules[0]["trigger"] == "123"
+
+            # вкл/выкл и порядок
+            r = client.post(f"/api/rules/{rule_id}/toggle").json()
+            assert r["enabled"] is False
+            client.post(f"/api/rules/{rule_id}/toggle")
+            r = client.post(f"/api/rules/{rule_id}/move", json={"direction": 1}).json()
+            assert r["ok"] is True
+
+            # редактирование
+            r = client.patch(f"/api/rules/{rule_id}", json={"trigger": "456", "content_type": "text", "content": "новое"}).json()
+            assert r["trigger"] == "456"
+
+            # удаление медиа и правила
+            assert client.delete(f"/api/rules/{rule_id}").json() == {"ok": True}
+            assert client.delete(f"/api/media/{media_id}").json() == {"ok": True}
+            assert client.get("/api/media").json()["media"] == []
 
             # --- logout ---
             assert client.post("/api/logout").status_code == 200

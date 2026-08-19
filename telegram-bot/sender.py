@@ -11,8 +11,10 @@ from urllib.parse import urlsplit
 
 from aiogram import Bot
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types.input_file import FSInputFile
 
-from storage import CONTENT_LINK, CONTENT_NICKNAME, Stage, StageStorage
+from content import ContentStorage
+from storage import CONTENT_LINK, CONTENT_MEDIA, CONTENT_NICKNAME, Stage, StageStorage
 
 log = logging.getLogger("sender")
 
@@ -50,30 +52,74 @@ def _nickname_line(content: str) -> str | None:
     )
 
 
-async def send_stage(bot: Bot, chat_id: int, stage: Stage, prefix: str | None = None) -> None:
-    """Отправляет один этап. prefix — служебная подпись (используется в тестах)."""
-    if stage.content_type == CONTENT_NICKNAME:
-        line = _nickname_line(stage.content)
+async def send_content(
+    bot: Bot,
+    chat_id: int,
+    content_type: str,
+    content: str,
+    content_storage: ContentStorage | None = None,
+    prefix: str | None = None,
+) -> bool:
+    """Отправляет один кусок контента (этап или результат ключевого слова).
+
+    :return: True, если отправлено; False, если не удалось (например, медиа не найдено)
+    """
+    if content_type == CONTENT_NICKNAME:
+        line = _nickname_line(content)
         if line:
             text = f"{prefix}\n\n{line}" if prefix else line
             await bot.send_message(chat_id, text, parse_mode="HTML")
-            return
-        log.warning("Этап %s: некорректный ник «%s», отправляю как обычный текст", stage.id, stage.content)
+            return True
+        log.warning("Некорректный ник «%s» — отправляю как обычный текст", content)
 
-    body = stage.content.strip()
+    body = (content or "").strip()
 
-    if stage.content_type == CONTENT_LINK and is_direct_file_url(body):
+    if content_type == CONTENT_MEDIA:
+        media = content_storage.get_media(body) if content_storage else None
+        if media is None:
+            log.warning("Медиа %s не найдено — отправляю заглушку", body)
+            await bot.send_message(chat_id, "📎 Файл не найден (возможно, удалён из бота).")
+            return False
+        path = media.path(content_storage.media_dir)
+        if not path.exists():
+            log.warning("Файл медиа %s отсутствует на диске", path)
+            await bot.send_message(chat_id, "📎 Файл не найден на сервере.")
+            return False
+        f = FSInputFile(path, filename=media.name)
+        if media.kind == "photo":
+            await bot.send_photo(chat_id, f, caption=prefix)
+        elif media.kind == "video":
+            await bot.send_video(chat_id, f, caption=prefix)
+        elif media.kind == "audio":
+            await bot.send_audio(chat_id, f, caption=prefix)
+        else:
+            await bot.send_document(chat_id, f, caption=prefix)
+        return True
+
+    if content_type == CONTENT_LINK and is_direct_file_url(body):
         try:
             if prefix:
                 await bot.send_document(chat_id, body, caption=prefix)
             else:
                 await bot.send_document(chat_id, body)
-            return
+            return True
         except Exception as e:  # диск не отдал файл — присылаем саму ссылку
             log.warning("Не удалось отправить файл по ссылке %s (%s), отправляю ссылкой", body, e)
 
     text = f"{prefix}\n\n{body}" if prefix else body
     await bot.send_message(chat_id, text)
+    return True
+
+
+async def send_stage(
+    bot: Bot,
+    chat_id: int,
+    stage: Stage,
+    prefix: str | None = None,
+    content_storage: ContentStorage | None = None,
+) -> None:
+    """Отправляет один этап. prefix — служебная подпись (используется в тестах)."""
+    await send_content(bot, chat_id, stage.content_type, stage.content, content_storage, prefix)
 
 
 def restart_kb() -> InlineKeyboardMarkup:
@@ -87,8 +133,9 @@ def restart_kb() -> InlineKeyboardMarkup:
 class StageSequencer:
     """Фоновые задачи проигрывания этапов: одна активная задача на чат."""
 
-    def __init__(self, storage: StageStorage):
+    def __init__(self, storage: StageStorage, content_storage: ContentStorage | None = None):
         self._storage = storage
+        self._content = content_storage
         self._tasks: dict[int, asyncio.Task] = {}
 
     def start(self, bot: Bot, chat_id: int) -> bool:
@@ -127,7 +174,7 @@ class StageSequencer:
             for stage in stages:
                 if stage.delay_seconds > 0:
                     await asyncio.sleep(stage.delay_seconds)
-                await send_stage(bot, chat_id, stage)
+                await send_stage(bot, chat_id, stage, content_storage=self._content)
             await bot.send_message(
                 chat_id,
                 "Если что-то потерялось — просто нажмите кнопку:",
@@ -142,9 +189,17 @@ class StageSequencer:
                 self._tasks.pop(chat_id, None)
 
 
-async def run_test(bot: Bot, chat_id: int, storage: StageStorage, live: bool) -> None:
+async def run_test(
+    bot: Bot,
+    chat_id: int,
+    storage: StageStorage,
+    live: bool,
+    content_storage: ContentStorage | None = None,
+) -> None:
     """Админ-прогон сценария: live=True — с реальными задержками, False — сразу."""
     storage.reload()
+    if content_storage is not None:
+        content_storage.reload()
     stages = storage.ordered()
     if not stages:
         await bot.send_message(chat_id, "🧪 Нет включённых этапов — добавьте их в /admin.")
@@ -154,5 +209,17 @@ async def run_test(bot: Bot, chat_id: int, storage: StageStorage, live: bool) ->
         wait = stage.delay_seconds if live else 0
         if wait > 0:
             await asyncio.sleep(wait)
-        await send_stage(bot, chat_id, stage, prefix=f"🧪 Тест, этап {i}/{total}")
+        await send_stage(
+            bot, chat_id, stage, prefix=f"🧪 Тест, этап {i}/{total}", content_storage=content_storage
+        )
     await bot.send_message(chat_id, "✅ Тест завершён.")
+
+
+async def send_rule_content(
+    bot: Bot,
+    chat_id: int,
+    rule,
+    content_storage: ContentStorage,
+) -> None:
+    """Отправка контента по сработавшему правилу ключевого слова."""
+    await send_content(bot, chat_id, rule.content_type, rule.content, content_storage)

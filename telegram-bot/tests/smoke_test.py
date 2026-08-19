@@ -42,6 +42,18 @@ class FakeBot:
         self.sent.append(("document", chat_id, document, caption))
         return "ok"
 
+    async def send_photo(self, chat_id, photo, caption=None, **kw):
+        self.sent.append(("photo", chat_id, photo, caption))
+        return "ok"
+
+    async def send_video(self, chat_id, video, caption=None, **kw):
+        self.sent.append(("video", chat_id, video, caption))
+        return "ok"
+
+    async def send_audio(self, chat_id, audio, caption=None, **kw):
+        self.sent.append(("audio", chat_id, audio, caption))
+        return "ok"
+
 
 class FakeMessage:
     def __init__(self, bot: FakeBot, text, uid: int = 1, cid: int = 100, ctype="private"):
@@ -71,6 +83,11 @@ class FakeCallback:
 
     async def answer(self, text=None, show_alert=False):
         self.ack = (text, show_alert)
+
+
+class FakeCommand:
+    def __init__(self, args=None):
+        self.args = args
 
 
 class FakeState:
@@ -245,6 +262,47 @@ def test_sequencer(tmp: Path):
     print("sequencer: OK")
 
 
+def test_media_and_rules(tmp: Path):
+    """Медиа-хранилище, правила (exact/contains), отправка медиа-этапа."""
+    from content import ContentStorage
+    from sender import send_content
+
+    async def run():
+        content = ContentStorage(tmp / "mr.json")
+        f = tmp / "hello.txt"
+        f.write_text("hi", encoding="utf-8")
+        m = content.add_media(f, "hello.txt", "document")
+        assert m.id == 1 and content.get_media(1) is not None
+        assert (content.media_dir / m.filename).exists()
+        assert content.get_media("abc") is None
+
+        r1 = content.add_rule("code1", "text", "one")
+        r2 = content.add_rule("key", "text", "two", match="contains")
+        assert content.find_rule("code1").id == r1.id
+        assert content.find_rule("some key here").id == r2.id
+        assert content.find_rule("nope") is None
+        assert content.toggle_rule(r2.id).enabled is False
+        assert content.find_rule("key") is None  # выключенное не срабатывает
+
+        # отправка медиа-контента
+        bot = FakeBot()
+        ok = await send_content(bot, 100, "media", str(m.id), content)
+        assert ok and bot.sent[-1][0] == "document"
+        # фото
+        png = tmp / "a.png"
+        png.write_bytes(b"x")
+        mp = content.add_media(png, "a.png", "photo")
+        ok = await send_content(bot, 100, "media", str(mp.id), content)
+        assert ok and bot.sent[-1][0] == "photo"
+        # медиа удалено -> заглушка
+        assert content.remove_media(m.id)
+        ok = await send_content(bot, 100, "media", "999", content)
+        assert not ok
+
+    asyncio.run(run())
+    print("media_and_rules: OK")
+
+
 def test_admin_service():
     from services import AdminService
 
@@ -290,25 +348,49 @@ def test_client_flow(tmp: Path):
         st.add(0, "link", "https://disk.yandex.ru/d/xyz")
         st.add(0, "nickname", "@support_nik")
 
+        from content import ContentStorage
+        content = ContentStorage(tmp / "client_content.json")
+        content.add_rule("123", "text", "Бонус по коду 123!")
+
         admin = AdminService(frozenset({999}))
-        seq = StageSequencer(st)
+        seq = StageSequencer(st, content)
         bot = FakeBot()
         state = FakeState()
 
         msg = FakeMessage(bot, "/start", uid=555, cid=200)
-        await cmd_start(msg, seq, admin)
+        await cmd_start(msg, FakeCommand(None), seq, admin, content)
         assert any("Готово" in a[0] for a in msg.answers)
 
         await asyncio.sleep(0.3)
-        texts = [s[2] for s in bot.sent]
+        texts = [x[2] for x in bot.sent]
         assert "Привет! 👋" in texts
         assert "https://disk.yandex.ru/d/xyz" in texts
         assert any("support_nik" in t for t in texts)
+        assert not any("Бонус по коду" in t for t in texts), "без кода правило не должно сработать"
+
+        # deep-link: /start с кодом 123 -> правило срабатывает
+        msg_code = FakeMessage(bot, "/start 123", uid=555, cid=200)
+        await cmd_start(msg_code, FakeCommand("123"), seq, admin, content)
+        await asyncio.sleep(0.4)
+        texts = [x[2] for x in bot.sent]
+        assert any("Бонус по коду 123!" in t for t in texts), "правило по коду из deep-link не сработало"
+
+        # клиент ввёл ключевое слово текстом -> сработало
+        msg_kw = FakeMessage(bot, "123", uid=555, cid=200)
+        from handlers.client import client_text
+        await client_text(msg_kw, admin, content)
+        assert any("Бонус по коду 123!" in x[2] for x in bot.sent), "правило по введённому тексту не сработало"
+        assert not msg_kw.answers, "при сработавшем правиле подсказка не нужна"
+
+        # клиент ввёл что-то другое -> подсказка
+        msg_other = FakeMessage(bot, "привет", uid=555, cid=200)
+        await client_text(msg_other, admin, content)
+        assert any("/start" in a[0] for a in msg_other.answers), "подсказка не пришла"
 
         # админ /start -> не клиент
         msg_admin = FakeMessage(bot, "/start", uid=999, cid=300)
         before = len(bot.sent)
-        await cmd_start(msg_admin, seq, admin)
+        await cmd_start(msg_admin, FakeCommand(None), seq, admin, content)
         assert len(bot.sent) == before
         assert any("администратор" in a[0].lower() for a in msg_admin.answers)
 
@@ -346,6 +428,8 @@ def test_admin_flow(tmp: Path):
 
     async def run():
         st = StageStorage(tmp / "admin.json")
+        from content import ContentStorage
+        content = ContentStorage(tmp / "admin_content.json")
         bot = FakeBot()
         state = FakeState()
 
@@ -380,7 +464,7 @@ def test_admin_flow(tmp: Path):
         assert any("ссылку" in a[0].lower() for a in cb.message.answers)
 
         m4 = FakeMessage(bot, "https://disk.yandex.ru/d/abc123", uid=111, cid=10)
-        await wizard_content(m4, state, st)
+        await wizard_content(m4, state, st, content)
         stages = st.all()
         assert stages[-1].content_type == "link"
         assert stages[-1].delay_seconds == 15
@@ -394,16 +478,16 @@ def test_admin_flow(tmp: Path):
         await wizard_delay(FakeMessage(bot, "0", uid=111, cid=10), state)
         await wizard_type(FakeCallback(bot, "type:link", uid=111, cid=10), state)
         before = len(st.all())
-        await wizard_content(m_bad, state, st)
+        await wizard_content(m_bad, state, st, content)
         assert len(st.all()) == before, "некорректную ссылку нельзя сохранить"
 
         # список этапов (команда и кнопка)
         m5 = FakeMessage(bot, "/stages", uid=111, cid=10)
-        await cmd_stages(m5, state, admin, st)
+        await cmd_stages(m5, state, admin, st, content)
         assert any("📋 Этапы" in a[0] for a in m5.answers)
 
         cb2 = FakeCallback(bot, "menu:stages", uid=111, cid=10)
-        await cb_stages(cb2, admin, st)
+        await cb_stages(cb2, admin, st, content)
         assert cb2.message.edits or cb2.message.answers
 
         # редактирование через кнопку: изменить задержку
@@ -413,7 +497,7 @@ def test_admin_flow(tmp: Path):
         assert state.data.get("mode") == "edit" and state.data.get("stage_id") == target.id
         await wizard_delay(FakeMessage(bot, "30", uid=111, cid=10), state)
         await wizard_type(FakeCallback(bot, "type:text", uid=111, cid=10), state)
-        await wizard_content(FakeMessage(bot, "Новый текст", uid=111, cid=10), state, st)
+        await wizard_content(FakeMessage(bot, "Новый текст", uid=111, cid=10), state, st, content)
         assert st.get(target.id).delay_seconds == 30
         assert st.get(target.id).content == "Новый текст"
         assert st.get(target.id).content_type == "text"
@@ -426,7 +510,7 @@ def test_admin_flow(tmp: Path):
 
         remaining = st.all()
         cb4 = FakeCallback(bot, f"del:{remaining[0].id}", uid=111, cid=10)
-        await cb_del(cb4, admin, st)
+        await cb_del(cb4, admin, st, content)
         assert st.get(remaining[0].id) is None
 
         # движение и переключение (добавляем этап, чтобы было минимум два)
@@ -434,12 +518,12 @@ def test_admin_flow(tmp: Path):
             st.add(0, "text", "дополнительный этап")
         a1, a2 = st.all()[0], st.all()[1]
         cb5 = FakeCallback(bot, f"move:{a1.id}:1", uid=111, cid=10)
-        await cb_move(cb5, admin, st)
+        await cb_move(cb5, admin, st, content)
         ids = [s.id for s in st.all()]
         assert ids.index(a2.id) < ids.index(a1.id)
 
         cb6 = FakeCallback(bot, f"toggle:{a1.id}", uid=111, cid=10)
-        await cb_toggle(cb6, admin, st)
+        await cb_toggle(cb6, admin, st, content)
         assert st.get(a1.id).enabled is False
 
         # /edit с неверным номером
@@ -469,7 +553,7 @@ def test_router_wiring():
     assert asyncio.run((~IsAdmin())(msg_other, admin=admin)) is True
     assert asyncio.run((~IsAdmin())(msg_admin, admin=admin)) is False
 
-    dp = Dispatcher(storage=None, admin=None, sequencer=None)
+    dp = Dispatcher(storage=None, content=None, admin=None, sequencer=None)
     dp.include_router(admin_router)
     dp.include_router(client_router)
     print("router_wiring: OK")
@@ -480,6 +564,7 @@ def main():
         tmp = Path(tmp)
         test_storage(tmp / "s1")
         test_cross_process_sync(tmp / "s5")
+        test_media_and_rules(tmp / "s6")
         test_direct_file_url()
         test_send_stage()
         test_sequencer(tmp / "s2")

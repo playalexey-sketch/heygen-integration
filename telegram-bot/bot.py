@@ -47,14 +47,15 @@ async def poll_forever(bot: Bot, dp: Dispatcher, cfg: Config) -> None:
 
 async def main() -> None:
     cfg = Config.from_env()
-    storage, admin, sequencer, bot = setup(cfg, log_name="bot.log")
+    storage, admin, sequencer, bot, content = setup(cfg, log_name="bot.log")
 
-    dp = Dispatcher(stages=storage, admin=admin, sequencer=sequencer)
+    dp = Dispatcher(stages=storage, content=content, admin=admin, sequencer=sequencer)
     dp.include_router(admin_router)   # Telegram-команды /admin тоже работают
     dp.include_router(client_router)
 
-    log.info("Бот запущен. Этапов: %d (включено: %d). Файл: %s",
-             len(storage.all()), len(storage.ordered()), cfg.stages_path)
+    log.info("Бот запущен. Этапов: %d (включено: %d), медиа: %d, ключевых слов: %d. Файл: %s",
+             len(storage.all()), len(storage.ordered()), len(content.all_media()),
+             len(content.all_rules()), cfg.stages_path)
     if not cfg.admin_ids:
         log.warning("ADMIN_ID не задан: первым админом в Telegram станет тот, "
                     "кто пришлёт /admin. Веб-админка защищена паролем.")

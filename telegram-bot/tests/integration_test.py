@@ -106,7 +106,10 @@ async def run() -> None:
         sequencer = StageSequencer(storage)
         bot = OfflineBot()
 
-        dp = Dispatcher(stages=storage, admin=admin, sequencer=sequencer)
+        from content import ContentStorage
+        content = ContentStorage(Path(tmp) / "content.json")
+        content.add_rule("777", "text", "Привет по коду 777!")
+        dp = Dispatcher(stages=storage, content=content, admin=admin, sequencer=sequencer)
         dp.include_router(admin_router)
         dp.include_router(client_router)
 

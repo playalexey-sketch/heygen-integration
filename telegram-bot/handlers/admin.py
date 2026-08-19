@@ -9,15 +9,19 @@ from __future__ import annotations
 import logging
 import re
 
+import tempfile
+from pathlib import Path
+
 from aiogram import Bot, F, Router
 from aiogram.filters import BaseFilter, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
+from content import KIND_AUDIO, KIND_DOCUMENT, KIND_PHOTO, KIND_VIDEO, ContentStorage, guess_kind
 from sender import run_test
 from services import AdminService
-from storage import CONTENT_LINK, CONTENT_NICKNAME, CONTENT_TEXT, Stage, StageStorage
+from storage import CONTENT_LINK, CONTENT_MEDIA, CONTENT_NICKNAME, CONTENT_TEXT, Stage, StageStorage
 
 router = Router(name="admin")
 log = logging.getLogger("admin")
@@ -36,6 +40,7 @@ TYPE_ICONS = {
     CONTENT_TEXT: "📄",
     CONTENT_LINK: "🔗",
     CONTENT_NICKNAME: "👤",
+    CONTENT_MEDIA: "🎬",
 }
 
 TYPE_PROMPTS = {
@@ -45,6 +50,10 @@ TYPE_PROMPTS = {
         "Если ссылка ведёт прямо на файл (например, .pdf, .zip) — я отправлю его как вложение."
     ),
     CONTENT_NICKNAME: "Шаг 3/3 — Отправьте ник в Telegram: @username или username.",
+    CONTENT_MEDIA: (
+        "Шаг 3/3 — Отправьте файл сообщением: фото, видео, аудио или любой файл. "
+        "Я сохраню его в боте, и он будет уходить клиентам."
+    ),
 }
 
 HELP_TEXT = (
@@ -103,6 +112,7 @@ def type_kb() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="📄 Текстовое сообщение", callback_data="type:text")],
             [InlineKeyboardButton(text="🔗 Ссылка на файл", callback_data="type:link")],
             [InlineKeyboardButton(text="👤 Ник в Telegram", callback_data="type:nickname")],
+            [InlineKeyboardButton(text="🎬 Медиа (фото/видео/аудио/файл)", callback_data="type:media")],
             [InlineKeyboardButton(text="❌ Отмена", callback_data="wizard:cancel")],
         ]
     )
@@ -129,7 +139,7 @@ def _snippet(text: str, limit: int = 64) -> str:
     return flat if len(flat) <= limit else flat[: limit - 1] + "…"
 
 
-def render_stages(stages: StageStorage) -> tuple[str, InlineKeyboardMarkup]:
+def render_stages(stages: StageStorage, content: "ContentStorage | None" = None) -> tuple[str, InlineKeyboardMarkup]:
     stages = stages.all()
     if not stages:
         return (
@@ -142,7 +152,12 @@ def render_stages(stages: StageStorage) -> tuple[str, InlineKeyboardMarkup]:
         status = "✅" if s.enabled else "⏸"
         delay = "сразу после прошлого" if s.delay_seconds == 0 else f"через {s.delay_seconds} с"
         lines.append(f"{i}. {status} {TYPE_ICONS[s.content_type]} {delay}")
-        lines.append(f"    «{_snippet(s.content)}»")
+        if s.content_type == CONTENT_MEDIA:
+            m = content.get_media(s.content) if content else None
+            label = f"файл: {m.name}" if m else "файл не найден!"
+        else:
+            label = f"«{_snippet(s.content)}»"
+        lines.append(f"    {label}")
     lines += ["", "Кнопки: ✏️ ред. | ⬆️⬇️ порядок | 🔁 вкл/выкл | 🗑 удалить"]
     return "\n".join(lines), stages_kb(stages)
 
@@ -219,7 +234,7 @@ async def cmd_admin(message: Message, admin: AdminService):
 
 
 @router.message(Command("stages"))
-async def cmd_stages(message: Message, state: FSMContext, admin: AdminService, stages: StageStorage):
+async def cmd_stages(message: Message, state: FSMContext, admin: AdminService, stages: StageStorage, content: ContentStorage):
     if not await guard_admin(message, admin):
         return
     text, kb = render_stages(stages)
@@ -374,10 +389,17 @@ async def wizard_type(cb: CallbackQuery, state: FSMContext):
 # --------------------- шаг 3: контент (текстом) ---------------------
 
 @router.message(Wizard.content, F.text)
-async def wizard_content(message: Message, state: FSMContext, stages: StageStorage):
+async def wizard_content(message: Message, state: FSMContext, stages: StageStorage, content: ContentStorage):
     data = await state.get_data()
     ctype = data.get("ctype", CONTENT_TEXT)
     raw = (message.text or "").strip()
+
+    if ctype == CONTENT_MEDIA:
+        await message.answer(
+            "Для медиа-этапа нужно отправить сам файл (фото/видео/аудио/файл), а не текст. "
+            "Отправьте файл сообщением, или /cancel."
+        )
+        return
 
     if ctype == CONTENT_LINK:
         if not re.fullmatch(r"https?://\S+", raw):
@@ -406,19 +428,83 @@ async def wizard_content(message: Message, state: FSMContext, stages: StageStora
         await message.answer(f"✅ Этап добавлен. Всего этапов: {len(stages.all())}. Список:")
 
     await state.clear()
-    text, kb = render_stages(stages)
+    text, kb = render_stages(stages, content)
+    await message.answer(text, reply_markup=kb)
+
+
+@router.message(Wizard.content, F.photo | F.video | F.animation | F.audio | F.document)
+async def wizard_media(
+    message: Message,
+    state: FSMContext,
+    stages: StageStorage,
+    content: ContentStorage,
+):
+    """Мастер, шаг 3: админ прислал файл (фото/видео/аудио/документ) — сохранить как медиа."""
+    data = await state.get_data()
+    if data.get("ctype") != CONTENT_MEDIA:
+        return
+
+    # достать файл из сообщения
+    kind = KIND_DOCUMENT
+    file_obj = None
+    name = None
+    if message.photo:
+        kind, file_obj = KIND_PHOTO, message.photo[-1]
+        name = f"photo_{int(int(time.time()))}.jpg"
+    elif message.video:
+        kind, file_obj = KIND_VIDEO, message.video
+        name = message.video.file_name or f"video_{int(int(time.time()))}.mp4"
+    elif message.animation:
+        kind, file_obj = KIND_VIDEO, message.animation
+        name = message.animation.file_name or f"animation_{int(int(time.time()))}.mp4"
+    elif message.audio:
+        kind, file_obj = KIND_AUDIO, message.audio
+        name = message.audio.file_name or f"audio_{int(int(time.time()))}.mp3"
+    elif message.document:
+        file_obj = message.document
+        name = message.document.file_name or f"file_{int(int(time.time()))}"
+        kind = guess_kind(name, message.document.mime_type or "")
+    if file_obj is None:
+        await message.answer("Не распознал файл. Отправьте фото, видео, аудио или документ, или /cancel.")
+        return
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(name).suffix) as tmp:
+            tmp_path = tmp.name
+        await message.bot.download(file_obj, destination=tmp_path)
+        media = content.add_media(tmp_path, name, kind)
+    except Exception:
+        log.exception("Не удалось скачать файл для медиа-этапа")
+        await message.answer("Не удалось сохранить файл. Попробуйте ещё раз, или /cancel.")
+        return
+    finally:
+        try:
+            import os as _os
+            _os.unlink(tmp_path)
+        except (OSError, UnboundLocalError):
+            pass
+
+    if data.get("mode") == "edit" and stages.get(data.get("stage_id", -1)) is not None:
+        stages.update(data["stage_id"], delay_seconds=data.get("delay", 0), content_type=CONTENT_MEDIA, content=str(media.id))
+        await message.answer(f"✅ Файл сохранён: {media.name}. Этап обновлён. Текущий список:")
+    else:
+        stages.add(data.get("delay", 0), CONTENT_MEDIA, str(media.id))
+        await message.answer(f"✅ Файл сохранён: {media.name}. Этап добавлен. Список:")
+
+    await state.clear()
+    text, kb = render_stages(stages, content)
     await message.answer(text, reply_markup=kb)
 
 
 # --------------------- кнопки меню и списка ---------------------
 
 @router.callback_query(F.data == "menu:stages")
-async def cb_stages(cb: CallbackQuery, admin: AdminService, stages: StageStorage):
+async def cb_stages(cb: CallbackQuery, admin: AdminService, stages: StageStorage, content: ContentStorage):
     if not _cb_admin_ok(cb, admin):
         await _deny_cb(cb)
         return
     await cb.answer()
-    text, kb = render_stages(stages)
+    text, kb = render_stages(stages, content)
     await answer_cb(cb, text, kb)
 
 
@@ -468,7 +554,7 @@ async def cb_wizard_cancel(cb: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith("del:"))
-async def cb_del(cb: CallbackQuery, admin: AdminService, stages: StageStorage):
+async def cb_del(cb: CallbackQuery, admin: AdminService, stages: StageStorage, content: ContentStorage):
     if not _cb_admin_ok(cb, admin):
         await _deny_cb(cb)
         return
@@ -477,12 +563,12 @@ async def cb_del(cb: CallbackQuery, admin: AdminService, stages: StageStorage):
         await cb.answer("Этап удалён")
     else:
         await cb.answer("Этап не найден", show_alert=True)
-    text, kb = render_stages(stages)
+    text, kb = render_stages(stages, content)
     await answer_cb(cb, text, kb)
 
 
 @router.callback_query(F.data.startswith("toggle:"))
-async def cb_toggle(cb: CallbackQuery, admin: AdminService, stages: StageStorage):
+async def cb_toggle(cb: CallbackQuery, admin: AdminService, stages: StageStorage, content: ContentStorage):
     if not _cb_admin_ok(cb, admin):
         await _deny_cb(cb)
         return
@@ -492,12 +578,12 @@ async def cb_toggle(cb: CallbackQuery, admin: AdminService, stages: StageStorage
         await cb.answer("Этап не найден", show_alert=True)
         return
     await cb.answer("Включён" if stage.enabled else "Выключен")
-    text, kb = render_stages(stages)
+    text, kb = render_stages(stages, content)
     await answer_cb(cb, text, kb)
 
 
 @router.callback_query(F.data.startswith("move:"))
-async def cb_move(cb: CallbackQuery, admin: AdminService, stages: StageStorage):
+async def cb_move(cb: CallbackQuery, admin: AdminService, stages: StageStorage, content: ContentStorage):
     if not _cb_admin_ok(cb, admin):
         await _deny_cb(cb)
         return
@@ -505,7 +591,7 @@ async def cb_move(cb: CallbackQuery, admin: AdminService, stages: StageStorage):
     moved = stages.move(int(stage_id), -1 if direction == "-1" else 1)
     await cb.answer("Перемещён" if moved else "Дальше двигать нельзя")
     if moved:
-        text, kb = render_stages(stages)
+        text, kb = render_stages(stages, content)
         await answer_cb(cb, text, kb)
 
 

@@ -33,11 +33,12 @@ log = logging.getLogger("admin")
 
 async def main() -> None:
     cfg = Config.from_env()
-    storage, admin, sequencer, bot = setup(cfg, log_name="admin.log")
+    storage, admin, sequencer, bot, content = setup(cfg, log_name="admin.log")
 
     app = create_app(
         cfg=cfg,
         storage=storage,
+        content=content,
         bot=bot,
         sequencer=sequencer,
         admin=admin,

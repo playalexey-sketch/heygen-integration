@@ -12,6 +12,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.exceptions import TelegramUnauthorizedError
 
 from config import Config
+from content import ContentStorage
 from sender import StageSequencer
 from services import AdminService
 from storage import StageStorage
@@ -66,7 +67,9 @@ def apply_proxy(bot: Bot, proxy: str) -> None:
         log.exception("Не удалось применить прокси %r", proxy)
 
 
-def setup(cfg: Config, log_name: str = "bot.log") -> tuple[StageStorage, AdminService, StageSequencer, Bot]:
+def setup(
+    cfg: Config, log_name: str = "bot.log"
+) -> tuple[StageStorage, AdminService, StageSequencer, Bot, ContentStorage]:
     """Логирование в файл + сборка общих объектов.
 
     :param log_name: имя лог-файла в DATA_DIR (у бота — bot.log, у админки — admin.log)
@@ -77,8 +80,9 @@ def setup(cfg: Config, log_name: str = "bot.log") -> tuple[StageStorage, AdminSe
     logging.getLogger().addHandler(file_handler)
 
     storage = StageStorage(cfg.stages_path)
+    content = ContentStorage(cfg.data_dir / "content.json")
     admin = AdminService(cfg.admin_ids)
-    sequencer = StageSequencer(storage)
+    sequencer = StageSequencer(storage, content)
 
     proxy = load_proxy(cfg)
     if proxy:
@@ -91,7 +95,7 @@ def setup(cfg: Config, log_name: str = "bot.log") -> tuple[StageStorage, AdminSe
     else:
         session = IPv4AiohttpSession()
     bot = Bot(token=cfg.bot_token, session=session)
-    return storage, admin, sequencer, bot
+    return storage, admin, sequencer, bot, content
 
 
 async def check_bot_online(bot: Bot) -> None:

@@ -17,13 +17,17 @@ from typing import Optional
 
 from aiogram import Bot
 from aiogram.client.session.aiohttp import AiohttpSession
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 
+import os
+import tempfile
+
 from app_common import IPv4AiohttpSession, apply_proxy, load_proxy
+from content import KIND_ICONS, MATCH_CONTAINS, MATCH_EXACT, ContentStorage, guess_kind
 from sender import StageSequencer, run_test
 from services import AdminService
-from storage import CONTENT_LINK, CONTENT_NICKNAME, CONTENT_TEXT, CONTENT_TYPES, StageStorage
+from storage import CONTENT_LINK, CONTENT_MEDIA, CONTENT_NICKNAME, CONTENT_TEXT, CONTENT_TYPES, StageStorage
 
 log = logging.getLogger("web")
 
@@ -54,6 +58,7 @@ def _password(cfg) -> str:
 def create_app(
     cfg,
     storage: StageStorage,
+    content: "ContentStorage",
     bot: Bot,
     sequencer: StageSequencer,
     admin: AdminService,
@@ -106,10 +111,13 @@ def create_app(
                 app.state.bot_username = username = me.username
             except Exception:
                 username = None
+        content.reload()
         return {
             "bot": f"@{username}" if username else None,
             "stages_total": len(storage.all()),
             "stages_enabled": len(storage.ordered()),
+            "media_total": len(content.all_media()),
+            "rules_total": len(content.all_rules()),
             "uptime_sec": int(time.time() - started_at),
             "web_password_set": bool(cfg.web_password),
         }
@@ -132,6 +140,10 @@ def create_app(
         storage.reload()  # актуальное состояние с диска (общий файл с ботом)
         return {"stages": [_stage_dict(i, s) for i, s in enumerate(storage.all(), 1)]}
 
+    def content_storage_get_media(mid) -> object:
+        content.reload()
+        return content.get_media(mid)
+
     def _validate(delay_seconds, content_type: str, content: str) -> str:
         if not str(delay_seconds).lstrip("-").isdigit():
             raise HTTPException(400, "Задержка — целое число секунд (0 = сразу)")
@@ -148,6 +160,9 @@ def create_app(
             u = content.lstrip("@").strip()
             if not re.fullmatch(r"[A-Za-z0-9_]{5,32}", u):
                 raise HTTPException(400, "Ник: @username, 5–32 символа (латиница, цифры, _)")
+        elif content_type == CONTENT_MEDIA:
+            if not content or content_storage_get_media(content) is None:
+                raise HTTPException(400, "Выберите файл из списка медиа (вкладка «Медиа»)")
         else:
             if not content:
                 raise HTTPException(400, "Текст не может быть пустым")
@@ -265,7 +280,7 @@ def create_app(
             # Быстрый тест — выполняем сразу и честно сообщаем результат,
             # в т.ч. «нет связи с Telegram».
             try:
-                await run_test(bot, chat_id, storage, live=False)
+                await run_test(bot, chat_id, storage, live=False, content_storage=content)
             except Exception as e:
                 log.exception("Тест сценария в чат %s не удался", chat_id)
                 msg = str(e)
@@ -281,12 +296,134 @@ def create_app(
 
         async def _run():
             try:
-                await run_test(bot, chat_id, storage, live=True)
+                await run_test(bot, chat_id, storage, live=True, content_storage=content)
             except Exception:
                 log.exception("Тест сценария в чат %s не удался (см. admin.log)", chat_id)
 
         asyncio.create_task(_run())
         return {"ok": True, "live": True}
+
+    # --- медиа ---
+
+    @app.get("/api/media")
+    async def get_media(request: Request):
+        _auth(request)
+        content.reload()
+        return {"media": [
+            {
+                "id": m.id,
+                "name": m.name,
+                "kind": m.kind,
+                "size": m.size,
+                "icon": KIND_ICONS.get(m.kind, "📎"),
+            }
+            for m in content.all_media()
+        ]}
+
+    @app.post("/api/media")
+    async def upload_media(request: Request, file: UploadFile = File(...)):
+        _auth(request)
+        name = file.filename or "file"
+        kind = guess_kind(name, file.content_type or "")
+        fd, tmp = tempfile.mkstemp(suffix=Path(name).suffix, prefix=".up-")
+        try:
+            with os.fdopen(fd, "wb") as out:
+                while chunk := await file.read(1024 * 1024):
+                    out.write(chunk)
+            media = content.add_media(tmp, name, kind)
+        except Exception:
+            log.exception("Загрузка медиа не удалась")
+            raise HTTPException(500, "Не удалось сохранить файл")
+        finally:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+        return {
+            "id": media.id, "name": media.name, "kind": media.kind,
+            "size": media.size, "icon": KIND_ICONS.get(media.kind, "📎"),
+        }
+
+    @app.delete("/api/media/{media_id}")
+    async def delete_media(media_id: int, request: Request):
+        _auth(request)
+        if not content.remove_media(media_id):
+            raise HTTPException(404, "Медиа не найдено")
+        return {"ok": True}
+
+    # --- правила (ключевые слова) ---
+
+    def _rule_dict(i: int, r) -> dict:
+        return {
+            "position": i,
+            "id": r.id,
+            "trigger": r.trigger,
+            "match": r.match,
+            "content_type": r.content_type,
+            "content": r.content,
+            "enabled": r.enabled,
+        }
+
+    @app.get("/api/rules")
+    async def get_rules(request: Request):
+        _auth(request)
+        content.reload()
+        return {"rules": [_rule_dict(i, r) for i, r in enumerate(content.all_rules(), 1)]}
+
+    @app.post("/api/rules")
+    async def add_rule(request: Request):
+        _auth(request)
+        b = await request.json()
+        trigger = (b.get("trigger") or "").strip()
+        match = b.get("match") or MATCH_EXACT
+        ctype = b.get("content_type", "text")
+        if not trigger:
+            raise HTTPException(400, "Триггер (слово/символ/код) не может быть пустым")
+        if match not in (MATCH_EXACT, MATCH_CONTAINS):
+            raise HTTPException(400, "match: exact или contains")
+        c = _validate(0, ctype, b.get("content", ""))
+        r = content.add_rule(trigger, ctype, c, match)
+        return _rule_dict(len(content.all_rules()), r)
+
+    @app.patch("/api/rules/{rule_id}")
+    async def update_rule(rule_id: int, request: Request):
+        _auth(request)
+        b = await request.json()
+        r0 = content.get_rule(rule_id)
+        if r0 is None:
+            raise HTTPException(404, "Правило не найдено")
+        trigger = (b.get("trigger") or r0.trigger).strip()
+        match = b.get("match") or r0.match
+        ctype = b.get("content_type") or r0.content_type
+        c = _validate(0, ctype, b.get("content", r0.content))
+        r = content.update_rule(
+            rule_id, trigger=trigger, match=match, content_type=ctype, content=c
+        )
+        return _rule_dict(content.index_of(r) + 1, r)
+
+    @app.delete("/api/rules/{rule_id}")
+    async def delete_rule(rule_id: int, request: Request):
+        _auth(request)
+        if not content.remove_rule(rule_id):
+            raise HTTPException(404, "Правило не найдено")
+        return {"ok": True}
+
+    @app.post("/api/rules/{rule_id}/toggle")
+    async def toggle_rule(rule_id: int, request: Request):
+        _auth(request)
+        r = content.toggle_rule(rule_id)
+        if r is None:
+            raise HTTPException(404, "Правило не найдено")
+        return _rule_dict(content.index_of(r) + 1, r)
+
+    @app.post("/api/rules/{rule_id}/move")
+    async def move_rule(rule_id: int, request: Request):
+        _auth(request)
+        b = await request.json()
+        d = int(b.get("direction", 0))
+        if d not in (-1, 1) or not content.move_rule(rule_id, d):
+            raise HTTPException(400, "Дальше двигать нельзя")
+        return {"ok": True}
 
     # --- страница ---
 
