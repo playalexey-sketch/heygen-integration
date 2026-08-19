@@ -1,0 +1,16 @@
+{
+  "project_id": "proj_ebde53d7",
+  "project_name": "AutoExpert DEMO FULL",
+  "niche": "эксперты по продуктивности",
+  "expert_name": "Мария",
+  "positioning_one_liner": "Система лидов для экспертов → 5-15 заявок/нед без плясок",
+  "icp_primary": "Выгорающий эксперт 28-38, 60-150k",
+  "method_name": "AUTO-EXPERT OS",
+  "enemy": "Мотивационный контент без системы",
+  "big_idea": "Система > Харизма",
+  "tone": ["прямо", "без воды", "с примерами", "на ты"],
+  "colors_hint": ["#FF6B6B", "#0F1420", "#FFFFFF"],
+  "next_phase": "phase_2",
+  "artifacts_passing": ["01_market_report.md", "02_expert_dossier.md", "03_icp_avatars.md", "04_positioning.md", "05_proof_board.md", "06_competitor_map.md"],
+  "human_approved": false
+}

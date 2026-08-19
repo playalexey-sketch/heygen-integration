@@ -55,3 +55,9 @@ LTX-2/
 # WebUI work/uploads
 ltx2_work/
 ltx2_output/
+# Brand Factory projects - ignore all except demo_example
+brand_factory/projects/*
+!brand_factory/projects/demo_example
+!brand_factory/projects/demo_example/*
+!brand_factory/projects/.gitkeep
+

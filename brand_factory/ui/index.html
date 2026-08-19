@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brand Factory OS — Фабрика Агентов</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  body{font-family:'Manrope',system-ui;background:#0B0E16;color:#E6E8F0}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .glass{background:rgba(26,33,48,0.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08)}
+  .card{border-radius:18px}
+  .agent-card{transition:.2s;cursor:pointer}
+  .agent-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.2)}
+  .status-idle{color:#8B96AB;background:#1A2130;border:1px solid #2A344A}
+  .status-waiting_input{color:#FFD93D;background:#2A2410;border:1px solid #4A3F1A}
+  .status-ready{color:#6EE7B7;background:#123025;border:1px solid #1A4A36}
+  .status-running{color:#60A5FA;background:#10213A;border:1px solid #1E3A66;animation:pulse 1.5s infinite}
+  .status-needs_review{color:#FBBF24;background:#2C2410;border:1px solid #665520}
+  .status-approved{color:#4ADE80;background:#0F2A1A;border:1px solid #1B4D2E}
+  .status-failed{color:#FB7185;background:#2A1215;border:1px solid #5A2026}
+  @keyframes pulse{0%{opacity:.8}50%{opacity:1}100%{opacity:.8}}
+  .tab-active{background:#FF6B6B;color:#0B0E16;font-weight:800}
+  .progress-bar{height:6px;background:#1A2130;border-radius:999px;overflow:hidden}
+  .progress-fill{height:100%;background:linear-gradient(90deg,#FF6B6B,#FFE66D);transition:width .6s}
+  .md-content{prose:prose-invert;max-width:none;line-height:1.7}
+  .md-content h1{font-size:1.9rem;font-weight:800;margin:1.2rem 0 .6rem}
+  .md-content h2{font-size:1.3rem;font-weight:700;margin:1.2rem 0 .4rem;color:#FF6B6B}
+  .md-content h3{font-weight:700;margin:1rem 0 .3rem}
+  .md-content table{border-collapse:collapse;width:100%;margin:1rem 0}
+  .md-content td,.md-content th{border:1px solid #2A344A;padding:8px 10px;text-align:left}
+  .md-content code{background:#1A2130;padding:2px 6px;border-radius:6px;font-family:'JetBrains Mono'}
+  .md-content blockquote{border-left:3px solid #FF6B6B;padding-left:12px;margin:1rem 0;color:#A0AABB}
+  .scrollbar::-webkit-scrollbar{width:6px;height:6px}
+  .scrollbar::-webkit-scrollbar-thumb{background:#2A344A;border-radius:999px}
+  ::-webkit-scrollbar{width:8px}
+</style>
+</head>
+<body>
+<div class="min-h-screen flex flex-col">
+  <!-- HEADER -->
+  <header class="border-b border-white/10 sticky top-0 z-30 bg-[#0B0E16]/80 backdrop-blur-xl">
+   <div class="max-w-[1680px] mx-auto px-4 md:px-7 py-4 flex items-center gap-5">
+     <div class="flex items-center gap-3">
+       <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF6B6B] to-[#FFE66D] grid place-items-center text-[#0B0E16] font-[900] text-xl">B</div>
+       <div>
+         <div class="font-[800] tracking-tight text-[17px] leading-none">BRAND FACTORY OS</div>
+         <div class="text-[11px] mono opacity-60 tracking-widest">AGENT FACTORY // v1.0</div>
+       </div>
+     </div>
+     <div class="hidden md:flex items-center gap-2 ml-6">
+       <span class="px-3 py-1 rounded-full bg-[#1A2130] text-xs mono">HEYGEN INTEGRATED</span>
+       <span class="px-3 py-1 rounded-full bg-[#123025] text-[#6EE7B7] text-xs mono">7 PHASES // 21 AGENTS</span>
+       <span class="px-3 py-1 rounded-full bg-[#10213A] text-[#60A5FA] text-xs mono">HUMAN-IN-THE-LOOP</span>
+     </div>
+     <div class="ml-auto flex items-center gap-3">
+       <button id="btn-new-project" class="px-4 py-2 rounded-xl bg-white text-black font-700 text-sm hover:bg-zinc-200">+ Новый проект</button>
+       <div class="w-8 h-8 rounded-full bg-[#1A2130] grid place-items-center">👤</div>
+     </div>
+   </div>
+ </header>
+
+ <div class="flex flex-1 max-w-[1680px] mx-auto w-full">
+  <!-- SIDEBAR -->
+  <aside class="w-[310px] hidden lg:flex flex-col border-r border-white/10 p-4 gap-4 sticky top-[65px] h-[calc(100vh-65px)] overflow-auto scrollbar">
+   <div>
+     <div class="flex items-center justify-between mb-3">
+       <h3 class="text-xs mono opacity-60 tracking-widest">ПРОЕКТЫ</h3>
+       <span id="projects-count" class="text-xs mono opacity-40">0</span>
+     </div>
+     <div id="projects-list" class="flex flex-col gap-2"></div>
+   </div>
+
+   <div class="h-px bg-white/10 my-2"></div>
+
+   <div>
+     <h3 class="text-xs mono opacity-60 tracking-widest mb-3">ПУТЬ: 0 → AUTO-SALES</h3>
+     <div id="phases-nav" class="flex flex-col gap-2"></div>
+   </div>
+
+   <div class="h-px bg-white/10 my-2"></div>
+
+   <div class="glass card p-4">
+     <div class="text-xs mono opacity-60 mb-2">ПРОГРЕСС ФАБРИКИ</div>
+     <div class="flex items-end justify-between mb-2">
+       <div class="text-2xl font-[800]" id="factory-progress-txt">0%</div>
+       <div class="text-xs opacity-60" id="factory-approved-txt">0/21 approved</div>
+     </div>
+     <div class="progress-bar"><div id="factory-progress-bar" class="progress-fill" style="width:0%"></div></div>
+     <div class="mt-3 text-[12px] leading-5 opacity-70">Каждый агент передает md, json, картинки, описания следующему. Человек видит и утверждает на каждом чекпоинте.</div>
+   </div>
+
+   <div class="glass card p-4">
+     <div class="text-xs mono opacity-60 mb-2">ЧТО УЛУЧШЕНО В ЭТОМ ПУТИ</div>
+     <ul class="text-[12px] leading-[18px] flex flex-col gap-2 opacity-80">
+       <li>• <b>Модуль HeyGen:</b> фото → говорящее видео без съемок</li>
+       <li>• <b>Фабрика Reels:</b> 30 сценариев с хуками сразу, а не 1 в день</li>
+       <li>• <b>DM триггеры:</b> слово в коммент = лид в базу 35%</li>
+       <li>• <b>Единый Brand Manifest</b> в md+json для всех агентов</li>
+       <li>• <b>Human approval:</b> видишь что делает каждый агент</li>
+     </ul>
+   </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="flex-1 min-w-0">
+   <!-- PROJECT HEADER -->
+   <div id="project-header" class="p-4 md:p-7 border-b border-white/10 hidden">
+     <div class="flex flex-wrap gap-4 items-start justify-between">
+       <div>
+         <div class="flex items-center gap-3">
+           <h1 id="project-name" class="text-2xl md:text-3xl font-[800] tracking-tight">—</h1>
+           <span id="project-id-badge" class="mono text-[11px] px-2 py-1 rounded bg-[#1A2130] border border-white/10">proj_xxx</span>
+         </div>
+         <div id="project-meta" class="mono text-xs opacity-60 mt-2"></div>
+       </div>
+       <div class="flex gap-2">
+         <button onclick="switchTab('overview')" class="tab-btn px-3 py-1.5 rounded-full bg-[#1A2130] text-xs">Overview</button>
+         <button onclick="switchTab('factory')" class="tab-btn px-3 py-1.5 rounded-full bg-[#1A2130] text-xs">Factory Graph</button>
+         <button onclick="switchTab('artifacts')" class="tab-btn px-3 py-1.5 rounded-full bg-[#1A2130] text-xs">Artifacts</button>
+       </div>
+     </div>
+   </div>
+
+   <!-- TABS NAV -->
+   <div class="px-4 md:px-7 py-4 flex gap-2 overflow-auto scrollbar border-b border-white/5">
+     <button onclick="switchTab('phase_1')" data-tab="phase_1" class="tab-btn whitespace-nowrap px-4 py-2 rounded-xl bg-[#1A2130] text-sm font-600">🧱 Phase 1: Foundation</button>
+     <button onclick="switchTab('phase_2')" data-tab="phase_2" class="tab-btn whitespace-nowrap px-4 py-2 rounded-xl bg-[#1A2130] text-sm">💰 Phase 2: Offer</button>
+     <button onclick="switchTab('phase_3')" data-tab="phase_3" class="tab-btn whitespace-nowrap px-4 py-2 rounded-xl bg-[#1A2130] text-sm">✨ Phase 3: Visual & Social</button>
+     <button onclick="switchTab('phase_4')" data-tab="phase_4" class="tab-btn whitespace-nowrap px-4 py-2 rounded-xl bg-[#1A2130] text-sm">🚀 Phase 4: Content</button>
+     <button onclick="switchTab('phase_5')" data-tab="phase_5" class="tab-btn whitespace-nowrap px-4 py-2 rounded-xl bg-[#1A2130] text-sm">🧲 Phase 5: Leads</button>
+     <button onclick="switchTab('phase_6')" data-tab="phase_6" class="tab-btn whitespace-nowrap px-4 py-2 rounded-xl bg-[#1A2130] text-sm">⚡ Phase 6: Funnels + HeyGen</button>
+     <button onclick="switchTab('phase_7')" data-tab="phase_7" class="tab-btn whitespace-nowrap px-4 py-2 rounded-xl bg-[#1A2130] text-sm">💵 Phase 7: Sales & Scale</button>
+     <button onclick="switchTab('journey')" data-tab="journey" class="tab-btn whitespace-nowrap px-4 py-2 rounded-xl bg-[#1A2130] text-sm">📜 Full Journey Map</button>
+   </div>
+
+   <!-- CONTENT AREAS -->
+   <div class="p-4 md:p-7">
+     <!-- Empty state -->
+     <div id="empty-state" class="glass card p-10 text-center">
+       <div class="text-5xl mb-4">🧱</div>
+       <h2 class="text-2xl font-[800] mb-2">Фабрика агентов готова</h2>
+       <p class="opacity-70 max-w-[620px] mx-auto mb-6">Создай первый проект: укажи нишу, имя эксперта, соцсети. Далее фабрика из 21 агента проведет тебя от 0 до автопродаж. Каждый агент имеет унифицированный интерфейс: входные данные → генерация → md/json/картинки → твое утверждение → передает следующему.</p>
+       <button onclick="openNewProjectModal()" class="px-6 py-3 rounded-xl bg-[#FF6B6B] text-black font-[800]">Создать проект → Phase 1</button>
+       <div class="mt-10 grid md:grid-cols-3 gap-4 text-left">
+         <div class="glass card p-4"><div class="font-bold mb-1">📦 Что передает агент</div><div class="text-xs opacity-70 mono">.md файлы, .json манифесты, картинки, описания, скрипты, HeyGen видео-id. Все в /artifacts проекта.</div></div>
+         <div class="glass card p-4"><div class="font-bold mb-1">👁️ Унифицированный UI</div><div class="text-xs opacity-70 mono">Каждый агент: статус, прогресс, входы, выходы, превью, кнопки Run / Approve / Reject, логи.</div></div>
+         <div class="glass card p-4"><div class="font-bold mb-1">⚡ Быстро, удобно, комфортно</div><div class="text-xs opacity-70 mono">Не нужно прыгать по Notion + GDocs + Figma. Все в одном веб-приложении, чек-листы задач внутри каждой подфазы.</div></div>
+       </div>
+     </div>
+
+     <!-- Phase 1 DETAILED -->
+     <div id="tab-phase_1" class="tab-content hidden">
+       <!-- Quick input -->
+       <div class="grid lg:grid-cols-[380px_1fr] gap-5">
+         <div class="glass card p-5 h-fit sticky top-[140px]">
+           <h3 class="font-[800] text-[15px] mb-3">🎛️ Входные данные — Phase 1</h3>
+           <div class="text-[11px] mono opacity-60 mb-4">Эти данные увидят все 7 агентов фазы 1. Заполни максимально честно, можно голосом потом.</div>
+           <div class="flex flex-col gap-3" id="phase1-input-form">
+             <label class="text-xs opacity-70">Ниша / тема
+               <input id="inp-niche" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10 text-sm" placeholder="Например: эксперты по мышлению, коучи">
+             </label>
+             <label class="text-xs opacity-70">Имя эксперта
+               <input id="inp-expert_name" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10 text-sm" placeholder="Иван">
+             </label>
+             <label class="text-xs opacity-70">Кто ты сейчас (2-3 предложения)
+               <textarea id="inp-expert_current" rows="3" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10 text-sm" placeholder="Эксперт, 3 года в теме, 150 клиентов..."></textarea>
+             </label>
+             <label class="text-xs opacity-70">Суперсилы / чем отличаешься
+               <textarea id="inp-superpowers" rows="2" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10 text-sm" placeholder="Объясняю сложное просто, довожу до результата..."></textarea>
+             </label>
+             <label class="text-xs opacity-70">Истории (провалы, прорывы, кейсы)
+               <textarea id="inp-stories" rows="3" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10 text-sm" placeholder="Расскажи 2-3 истории..."></textarea>
+             </label>
+             <label class="text-xs opacity-70">Доказательства сейчас (кейсы, цифры, отзывы)
+               <textarea id="inp-proof_existing" rows="2" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10 text-sm"></textarea>
+             </label>
+             <label class="text-xs opacity-70">Конкуренты (ссылки @ник через запятую)
+               <input id="inp-competitors" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10 text-sm" placeholder="@petr, @maria ...">
+             </label>
+             <label class="text-xs opacity-70">Цель по выручке
+               <input id="inp-target_revenue" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10 text-sm" placeholder="300k/мес">
+             </label>
+             <button onclick="savePhase1Input()" class="mt-2 w-full py-3 rounded-xl bg-white text-black font-[800] text-sm">💾 Сохранить и разблокировать агентов</button>
+             <div class="text-[11px] opacity-50 mono">Сохранится в 07_brand_brief.json и уйдет всем агентам как контекст.</div>
+           </div>
+           <div class="mt-6">
+             <div class="text-xs mono opacity-60 mb-2">ФАЙЛЫ-ВХОДЫ (фото, скрины)</div>
+             <div class="border border-dashed border-white/20 rounded-xl p-4 text-center">
+               <input type="file" id="file-upload" hidden onchange="uploadFile(this.files[0])">
+               <button onclick="document.getElementById('file-upload').click()" class="text-xs px-3 py-1.5 rounded bg-[#1A2130]">Загрузить фото / скрин кейса</button>
+               <div class="text-[11px] opacity-40 mt-2">Попадет в artifacts и перейдет агентам Proof Collector, Visual Director, HeyGen Factory</div>
+             </div>
+           </div>
+         </div>
+
+         <div class="flex flex-col gap-6">
+           <!-- Phase header -->
+           <div class="glass card p-6 relative overflow-hidden">
+             <div class="absolute inset-0 opacity-20 bg-gradient-to-br from-[#FF6B6B] to-transparent"></div>
+             <div class="relative">
+               <div class="flex items-center gap-3 mb-3">
+                 <span class="w-10 h-10 rounded-xl bg-[#FF6B6B] grid place-items-center text-black font-bold">1</span>
+                 <div>
+                   <h2 class="font-[800] text-xl">Phase 1: Foundation & Brand DNA</h2>
+                   <div class="mono text-xs opacity-60">Фундамент - кто ты, для кого, почему тебе верить → Brand Manifest</div>
+                 </div>
+                 <div class="ml-auto hidden md:flex gap-2"><span class="px-3 py-1 rounded-full bg-[#1A2130] text-xs">7 агентов</span><span class="px-3 py-1 rounded-full bg-[#1A2130] text-xs">1 день вместо 3 мес</span></div>
+               </div>
+               <div class="grid md:grid-cols-3 gap-3 mt-4">
+                 <div class="bg-black/20 rounded-xl p-3"><div class="mono text-[11px] opacity-60">PROBLEM BEFORE</div><div class="text-[12px] mt-1 leading-5">Хаос, нет ясного ICP, позиционирование "я эксперт по всему", нет доказательств, копируют конкурентов</div></div>
+                 <div class="bg-black/20 rounded-xl p-3"><div class="mono text-[11px] opacity-60">IMPROVED</div><div class="text-[12px] mt-1 leading-5">Агенты дают: рынок + ICP с языком боли + Big Idea + Proof Board + gap анализ + единый манифест md+json</div></div>
+                 <div class="bg-black/20 rounded-xl p-3"><div class="mono text-[11px] opacity-60">OUTCOME</div><div class="text-[12px] mt-1 leading-5"><b>07_brand_manifest.md</b> + <b>07_brand_brief.json</b> — вход для всех следующих фаз. Человек утверждает.</div></div>
+               </div>
+             </div>
+           </div>
+
+           <!-- Subphases accordion -->
+           <div id="subphases-container" class="flex flex-col gap-4"></div>
+
+           <!-- Agents pipeline -->
+           <div class="mt-2">
+             <h3 class="font-[800] mb-3">🧩 Сеть агентов Phase 1 — как передают данные</h3>
+             <div id="agents-pipeline" class="grid md:grid-cols-2 gap-3"></div>
+           </div>
+
+           <!-- Manifest preview -->
+           <div class="glass card p-5">
+             <div class="flex items-center justify-between mb-3">
+               <h3 class="font-[800]">📜 Итоговый Brand Manifest (пример)</h3>
+               <button onclick="previewArtifact('07_brand_manifest.md')" class="text-xs px-3 py-1 rounded bg-[#1A2130]">Открыть</button>
+             </div>
+             <div id="manifest-preview" class="bg-[#0F1420] rounded-xl p-4 mono text-[12px] leading-6 opacity-80 max-h-[420px] overflow-auto">Manifest появится после прогона всех агентов фазы 1 и будет ждать твоего Approve.</div>
+           </div>
+         </div>
+       </div>
+     </div>
+
+     <!-- Other phase tabs (generic) -->
+     <div id="tab-generic" class="tab-content hidden">
+       <div id="generic-content"></div>
+     </div>
+
+     <!-- Overview -->
+     <div id="tab-overview" class="tab-content hidden">
+       <div class="grid lg:grid-cols-3 gap-5">
+         <div class="lg:col-span-2 glass card p-6">
+           <h2 class="font-[800] text-xl mb-4">Обзор фабрики — полный путь</h2>
+           <div id="overview-phases" class="flex flex-col gap-3"></div>
+         </div>
+         <div class="flex flex-col gap-4">
+           <div class="glass card p-5"><h3 class="font-bold mb-2">📦 Единый интерфейс агента</h3>
+             <div class="mono text-[11px] leading-5 opacity-80">
+               id, name, icon, role, inputs_required[], outputs_produced[], dependencies[], tasks[], status, progress, message, human_checkpoints[], artifacts[].<br><br>
+               Человек видит: что на входе, что на выходе, логи, превью md, кнопки Run / Approve / Reject / Regenerate. Все агенты наследуют BaseAgent.
+             </div>
+           </div>
+           <div class="glass card p-5"><h3 class="font-bold mb-2">🔄 Передача данных</h3>
+             <div class="mono text-[11px] leading-5 opacity-80">Каждый агент пишет в /projects/{id}/artifacts/ 01_*.md, 02_*.md ... + .json манифесты. Следующий читает через get_artifact_content. Картинки и видео тоже артефакты с preview_url. Итог: цепочка без потерь.</div>
+           </div>
+         </div>
+       </div>
+     </div>
+
+     <!-- Factory graph -->
+     <div id="tab-factory" class="tab-content hidden">
+       <h2 class="font-[800] text-xl mb-4">Factory Graph — граф зависимостей</h2>
+       <div id="factory-graph" class="glass card p-6 overflow-auto"></div>
+     </div>
+
+     <!-- Artifacts -->
+     <div id="tab-artifacts" class="tab-content hidden">
+       <h2 class="font-[800] text-xl mb-4">Artifacts — все что нагенерили агенты</h2>
+       <div id="artifacts-list" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+     </div>
+
+     <!-- Journey map -->
+     <div id="tab-journey" class="tab-content hidden">
+       <div class="glass card p-8">
+         <h1 class="text-3xl font-[900] mb-6">📜 Полный Journey Map — 0 → Brand → Leads → Auto Sales</h1>
+         <div id="journey-content" class="md-content"></div>
+       </div>
+     </div>
+   </div>
+  </main>
+ </div>
+</div>
+
+<!-- MODALS -->
+<div id="modal-new-project" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden place-items-center z-50">
+  <div class="glass card p-7 w-[520px] max-w-[95vw]">
+    <h2 class="font-[800] text-xl mb-1">Новый проект</h2>
+    <div class="mono text-xs opacity-60 mb-5">Создаст папку /brand_factory/projects/proj_xxxx + artifacts + meta.json</div>
+    <div class="flex flex-col gap-3">
+      <label class="text-xs">Название проекта<input id="new-proj-name" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10" placeholder="Например: AutoExpert OS"></label>
+      <label class="text-xs">Ниша<input id="new-proj-niche" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10" placeholder="эксперты по мышлению"></label>
+      <label class="text-xs">Имя эксперта<input id="new-proj-expert" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-[#0F1420] border border-white/10"></label>
+      <div class="flex gap-2 mt-2">
+        <button onclick="createProject()" class="flex-1 py-3 rounded-xl bg-[#FF6B6B] text-black font-[800]">Создать</button>
+        <button onclick="closeNewProjectModal()" class="px-5 py-3 rounded-xl bg-[#1A2130]">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-artifact" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden place-items-center z-50 p-4">
+  <div class="glass card w-[900px] max-w-[98vw] max-h-[92vh] overflow-auto p-0">
+    <div class="sticky top-0 bg-[#0F1420] border-b border-white/10 p-4 flex items-center justify-between">
+      <div class="font-bold" id="artifact-modal-title">Artifact</div>
+      <button onclick="closeArtifactModal()" class="w-8 h-8 rounded-full bg-[#1A2130] grid place-items-center">✕</button>
+    </div>
+    <div id="artifact-modal-content" class="p-6 md-content bg-[#0B0E16]"></div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
