@@ -8,7 +8,18 @@
 * 📄 **тип контента** — текстовое сообщение / ссылка на файл с диска / ник в Telegram;
 * 🔁 порядок этапов — меняете кнопками, этапы можно включать и выключать.
 
-Управлять ботом можно **двумя способами** (оба ведут в одни и те же настройки):
+Бот устроен как **два отдельных процесса**:
+1. **`bot.py`** — сам Telegram-бот: polling, отправка этапов клиентам после /start.
+   Работает только там, где есть доступ к Telegram. Лог: `bot_data/bot.log`.
+2. **`admin.py`** — веб-админ-панель: настройка этапов в браузере.
+   **Не требует доступа к Telegram** — работает даже когда бот «висит» на ретраях.
+   Лог: `bot_data/admin.log`.
+
+Процессы связаны общим файлом `bot_data/stages.json`: вы меняете этапы в
+админке — бот перечитывает файл перед отправкой **каждому** клиенту,
+поэтому изменения действуют мгновенно, без перезапуска.
+
+Управлять этапами можно **двумя способами** (оба ведут в одни и те же настройки):
 * 🌐 **Веб-панель в браузере** — `http://<ваш_сервер>:8080`. Работает отовсюду,
   **не требует VPN и доступа к Telegram** (это просто HTTP-страница).
 * 💬 **Команды в Telegram** — `/admin` и дальше кнопки (когда до Telegram есть доступ).
@@ -97,7 +108,7 @@ ADMIN_PASSWORD=пароль_для_веб_панели
 ### 3. Запустите
 
 **Самый простой способ — один скрипт** (сам создаст окружение, поставит
-зависимости, создаст `.env` и запустит бота):
+зависимости, создаст `.env` и запустит **оба процесса**: бот + веб-админка):
 
 ```bash
 # Linux / macOS
@@ -107,6 +118,12 @@ ADMIN_PASSWORD=пароль_для_веб_панели
 run.bat
 ```
 Первый запуск попросит вписать токен в `.env` — впишите и запустите скрипт ещё раз.
+
+Раздельный запуск процессов:
+```bash
+./run.sh bot     # только Telegram-бот          # Windows: run.bat bot
+./run.sh admin   # только веб-админка           # Windows: run.bat admin
+```
 
 **Вариант A — Docker (рекомендуется для сервера/24-7):**
 ```bash
@@ -175,9 +192,11 @@ python main.py
 
 ```
 telegram-bot/
-├── main.py               # точка входа: бот (polling) + веб-сервер в одном процессе
+├── bot.py                # ПРОЦЕСС 1: Telegram-бот (polling, отправка этапов)
+├── admin.py              # ПРОЦЕСС 2: веб-админ-панель (FastAPI на WEB_PORT)
+├── app_common.py         # общее: конфиг, логи, IPv4-сессия, сборка объектов
 ├── config.py             # чтение .env (BOT_TOKEN, ADMIN_ID, WEB_PORT, ADMIN_PASSWORD, DATA_DIR)
-├── storage.py            # этапы: модель Stage + JSON-хранилище (stages.json)
+├── storage.py            # этапы: модель Stage + JSON-хранилище (stages.json, reload)
 ├── sender.py             # отправка этапа; фоновый проигрыватель (StageSequencer); тест
 ├── services.py           # логика доступа к админ-панели
 ├── web_panel.py          # веб-панель (FastAPI): API + логин
@@ -190,12 +209,12 @@ telegram-bot/
 │   ├── smoke_test.py        # офлайн-тесты логики: python tests/smoke_test.py
 │   ├── integration_test.py  # тест через настоящий Dispatcher: python tests/integration_test.py
 │   └── web_test.py          # тесты веб-панели: python tests/web_test.py
-├── run.sh                # запуск одной командой (Linux/macOS)
-├── run.bat               # запуск одной командой (Windows)
+├── run.sh                # запуск (оба процесса / bot / admin) — Linux, macOS
+├── run.bat               # запуск (оба процесса / bot / admin) — Windows
 ├── requirements.txt
 ├── .env.example          # шаблон конфига (скопируйте в .env)
 ├── Dockerfile
-├── docker-compose.yml    # публикует порт веб-панели (WEB_PORT)
+├── docker-compose.yml    # два сервиса: tg-bot + tg-admin (порт веб-панели WEB_PORT)
 └── .dockerignore
 ```
 
@@ -229,7 +248,7 @@ Ctrl+C в терминале
 
 ### Запуск 24/7 на Linux-сервере (systemd)
 
-Создайте `/etc/systemd/system/tg-stage-bot.service`:
+Создайте два сервиса (по одному на процесс). `/etc/systemd/system/tg-stage-bot.service`:
 ```ini
 [Unit]
 Description=Telegram stage bot
@@ -237,19 +256,22 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=/путь/к/telegram-bot
-ExecStart=/путь/к/telegram-bot/venv/bin/python main.py
+ExecStart=/путь/к/telegram-bot/venv/bin/python bot.py
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
+`/etc/systemd/system/tg-stage-admin.service` — то же, но `ExecStart=.../python admin.py`
+и `Description=Telegram stage bot web admin`.
 Далее:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now tg-stage-bot
-journalctl -u tg-stage-bot -f   # логи
+sudo systemctl enable --now tg-stage-bot tg-stage-admin
+journalctl -u tg-stage-bot -f    # логи бота
 ```
+(или проще — Docker: `docker compose up -d --build` поднимет оба сервиса сам.)
 
 ## Частые вопросы
 
@@ -264,8 +286,14 @@ journalctl -u tg-stage-bot -f   # логи
 Да — этапов может быть сколько угодно, порядок задаёте кнопками ⬆️/⬇️.
 
 **Бот не запускается: «BOT_TOKEN не задан».**
-Проверьте, что файл `.env` лежит рядом с `main.py` (или в корне папки
-`telegram-bot` при Docker), токен вставлен целиком и без пробелов.
+Проверьте, что файл `.env` лежит в корне папки `telegram-bot` (рядом с
+`bot.py`/`admin.py`; при Docker — в том же месте, что и `docker-compose.yml`),
+токен вставлен целиком и без пробелов.
+
+**Как остановить каждый процесс?**
+Windows: `Ctrl+C` в окне процесса (или закрыть окно). Linux: `Ctrl+C` в терминале;
+если админка запущена в фоне — `pkill -f 'python admin.py'`. Docker:
+`docker compose down`.
 
 **Доступ к панели «⛔ Доступ запрещён».**
 Проверьте `ADMIN_ID` в `.env` — это ваш числовой ID (узнать: @userinfobot),
