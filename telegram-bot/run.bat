@@ -62,7 +62,8 @@ if %errorlevel% equ 0 (
 )
 
 echo.
-echo [5/5] Starting bot, stop with Ctrl+C
+echo [5/5] Starting bot and web panel, stop with Ctrl+C
+echo     Web panel: http://localhost:8080
 echo ------------------------------------------------------------
 python main.py
 set "EC=%errorlevel%"

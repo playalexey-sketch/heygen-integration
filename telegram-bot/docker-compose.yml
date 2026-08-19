@@ -11,3 +11,6 @@ services:
       DATA_DIR: /app/bot_data
     volumes:
       - ./bot_data:/app/bot_data
+    ports:
+      # Веб-панель: http://<IP сервера>:8080
+      - "${WEB_PORT:-8080}:8080"

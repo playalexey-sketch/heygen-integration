@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Бот — панель управления</title>
+<style>
+  :root {
+    --bg: #0f1420; --card: #1a2233; --card2: #212c42; --line: #2c3a55;
+    --text: #e8edf7; --muted: #8fa0bd; --accent: #4f8cff; --ok: #37c26e;
+    --warn: #f5a623; --danger: #ff5d5d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px; margin-bottom: 18px;
+  }
+  .card h2 { font-size: 16px; margin: 0 0 12px; }
+  input, select, textarea {
+    width: 100%; background: var(--card2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; font-size: 14px; font-family: inherit;
+  }
+  textarea { min-height: 84px; resize: vertical; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 16px; font-size: 14px; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.1); }
+  button.sec { background: var(--card2); border: 1px solid var(--line); }
+  button.danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+  button.sm { padding: 4px 10px; font-size: 13px; border-radius: 6px; }
+  .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; }
+  .off { opacity: .45; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 12px; background: var(--card2); border: 1px solid var(--line);
+  }
+  .badge.on { border-color: var(--ok); color: var(--ok); }
+  .badge.off { border-color: var(--warn); color: var(--warn); }
+  .content-cell { max-width: 340px; word-break: break-word; white-space: pre-wrap; }
+  .hint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .msg { margin-top: 10px; font-size: 14px; min-height: 18px; }
+  .msg.err { color: var(--danger); }
+  .msg.ok { color: var(--ok); }
+  #loginView { display: flex; justify-content: center; margin-top: 10vh; }
+  #loginView .card { width: 340px; }
+  .hidden { display: none !important; }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .statusline { color: var(--muted); font-size: 13px; }
+  .statusline b { color: var(--text); }
+  td.btns { white-space: nowrap; }
+  td.btns button { margin-right: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ======= ЛОГИН ======= -->
+  <div id="loginView">
+    <div class="card">
+      <h1>🔐 Панель управления</h1>
+      <p class="sub">Введите пароль (из ADMIN_PASSWORD в .env,<br>или из файла bot_data/admin_password.txt)</p>
+      <label>Пароль</label>
+      <input type="password" id="loginPass" autofocus>
+      <div class="actions"><button onclick="doLogin()">Войти</button></div>
+      <div class="msg" id="loginMsg"></div>
+    </div>
+  </div>
+
+  <!-- ======= ПАНЕЛЬ ======= -->
+  <div id="panelView" class="hidden">
+    <div class="top">
+      <h1>⚙️ Панель управления ботом</h1>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="statusline" id="statusLine">…</span>
+        <button class="sec sm" onclick="doLogout()">Выйти</button>
+      </div>
+    </div>
+    <p class="sub">Этапы отправляются клиенту по порядку после /start.
+       Задержка — сколько ждать после предыдущего сообщения бота. Изменения действуют сразу.</p>
+
+    <!-- ====== форма добавления/редактирования ====== -->
+    <div class="card">
+      <h2 id="formTitle">➕ Добавить этап</h2>
+      <div class="row">
+        <div>
+          <label>Задержка, сек (0 = сразу)</label>
+          <input type="number" id="fDelay" min="0" max="86400" value="0">
+        </div>
+        <div>
+          <label>Тип контента</label>
+          <select id="fType">
+            <option value="text">📄 Текстовое сообщение</option>
+            <option value="link">🔗 Ссылка на файл</option>
+            <option value="nickname">👤 Ник в Telegram</option>
+          </select>
+        </div>
+      </div>
+      <label id="fContentLabel">Текст сообщения</label>
+      <textarea id="fContent" placeholder="Например: Привет! 👋 Ниже ссылка на файл…"></textarea>
+      <div class="actions">
+        <button id="fSave" onclick="saveStage()">Добавить этап</button>
+        <button class="sec hidden" id="fCancel" onclick="cancelEdit()">Отмена</button>
+      </div>
+      <div class="msg" id="formMsg"></div>
+    </div>
+
+    <!-- ====== список этапов ====== -->
+    <div class="card">
+      <h2>📋 Этапы (сверху вниз — в порядке отправки)</h2>
+      <table>
+        <thead><tr><th>#</th><th>Статус</th><th>Тип</th><th>Задержка</th><th>Контент</th><th></th></tr></thead>
+        <tbody id="stagesBody"></tbody>
+      </table>
+      <div class="msg" id="listMsg"></div>
+    </div>
+
+    <!-- ====== тест ====== -->
+    <div class="card">
+      <h2>🧪 Тест сценария</h2>
+      <p class="hint">Бот отправит все включённые этапы в указанный чат (обычно — ваш личный чат с ботом).
+         Ваш числовой Telegram ID можно узнать у бота <b>@userinfobot</b>.</p>
+      <div class="row">
+        <div><label>Chat ID</label><input type="text" id="testChat" placeholder="123456789"></div>
+      </div>
+      <div class="actions">
+        <button onclick="runTest(false)">🧪 Тест сейчас (без задержек)</button>
+        <button class="sec" onclick="runTest(true)">▶️ Тест с реальными задержками</button>
+      </div>
+      <div class="msg" id="testMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let editingId = null;
+
+const TYPE_NAMES = { text: "📄 Текст", link: "🔗 Ссылка", nickname: "👤 Ник" };
+const CONTENT_LABELS = {
+  text: "Текст сообщения",
+  link: "Ссылка на файл (Яндекс Диск, Google Drive, MEGA; прямая ссылка на файл уйдёт вложением)",
+  nickname: "Ник в Telegram (@username)"
+};
+
+function $(id) { return document.getElementById(id); }
+function showMsg(id, text, cls) {
+  const el = $(id);
+  el.textContent = text || "";
+  el.className = "msg" + (cls ? " " + cls : "");
+}
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, Object.assign({
+    headers: { "Content-Type": "application/json" }
+  }, opts));
+  let data = {};
+  try { data = await r.json(); } catch (e) {}
+  if (r.status === 401 && !path.endsWith("/login")) { showLogin(); throw new Error("unauthorized"); }
+  if (!r.ok) throw new Error(data.detail || data.error || ("HTTP " + r.status));
+  return data;
+}
+
+function showLogin() {
+  $("loginView").classList.remove("hidden");
+  $("panelView").classList.add("hidden");
+}
+function showPanel() {
+  $("loginView").classList.add("hidden");
+  $("panelView").classList.remove("hidden");
+  loadAll();
+}
+
+async function doLogin() {
+  showMsg("loginMsg", "");
+  try {
+    await api("/api/login", { method: "POST", body: JSON.stringify({ password: $("loginPass").value }) });
+    $("loginPass").value = "";
+    showPanel();
+  } catch (e) {
+    showMsg("loginMsg", "Неверный пароль", "err");
+  }
+}
+$("loginPass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+async function doLogout() {
+  try { await api("/api/logout", { method: "POST" }); } catch (e) {}
+  showLogin();
+}
+
+async function loadStatus() {
+  try {
+    const s = await api("/api/status");
+    const up = Math.floor(s.uptime_sec / 60);
+    $("statusLine").innerHTML =
+      "Бот: <b>" + (s.bot || "подключение…") + "</b> · " +
+      "этапов: <b>" + s.stages_enabled + "/" + s.stages_total + "</b> · " +
+      "аптайм: <b>" + up + " мин</b>";
+  } catch (e) {}
+}
+
+async function loadStages() {
+  const data = await api("/api/stages");
+  const tb = $("stagesBody");
+  tb.innerHTML = "";
+  if (!data.stages.length) {
+    tb.innerHTML = "<tr><td colspan='6' class='hint'>Этапов пока нет — добавьте первый. " +
+      "Клиенту после /start отправится только он (с его задержкой).</td></tr>";
+    return;
+  }
+  for (const s of data.stages) {
+    const tr = document.createElement("tr");
+    if (!s.enabled) tr.className = "off";
+    const content = (s.content || "").replace(/</g, "&lt;");
+    tr.innerHTML =
+      "<td>" + s.position + "</td>" +
+      "<td><span class='badge " + (s.enabled ? "on' >вкл" : "off' >выкл") + "</span></td>" +
+      "<td>" + (TYPE_NAMES[s.content_type] || s.content_type) + "</td>" +
+      "<td>" + (s.delay_seconds === 0 ? "сразу" : s.delay_seconds + " с") + "</td>" +
+      "<td class='content-cell'>" + content + "</td>" +
+      "<td class='btns'>" +
+        "<button class='sec sm' onclick='startEdit(" + s.id + ")'>✏️</button>" +
+        "<button class='sec sm' onclick='moveStage(" + s.id + ", -1)'>⬆️</button>" +
+        "<button class='sec sm' onclick='moveStage(" + s.id + ", 1)'>⬇️</button>" +
+        "<button class='sec sm' onclick='toggleStage(" + s.id + ")'>🔁</button>" +
+        "<button class='danger sm' onclick='delStage(" + s.id + ")'>🗑</button>" +
+      "</td>";
+    tb.appendChild(tr);
+  }
+}
+
+async function loadAll() {
+  await Promise.all([loadStatus(), loadStages()]);
+}
+
+function setForm(delay, type, content) {
+  $("fDelay").value = delay;
+  $("fType").value = type;
+  $("fContent").value = content;
+  $("fContentLabel").textContent = CONTENT_LABELS[type] || "Контент";
+}
+
+$("fType").addEventListener("change", e => {
+  $("fContentLabel").textContent = CONTENT_LABELS[e.target.value] || "Контент";
+  const ph = { text: "Например: Привет! 👋", link: "https://disk.yandex.ru/d/...", nickname: "@username" };
+  $("fContent").placeholder = ph[e.target.value] || "";
+});
+
+function cancelEdit() {
+  editingId = null;
+  $("formTitle").textContent = "➕ Добавить этап";
+  $("fSave").textContent = "Добавить этап";
+  $("fCancel").classList.add("hidden");
+  setForm(0, "text", "");
+  showMsg("formMsg", "");
+}
+
+function startEdit(id) {
+  const data = localStorage.getItem("stagesCache");
+  let stage = null;
+  try { stage = JSON.parse(data || "[]").find(s => s.id === id); } catch (e) {}
+  if (!stage) return;
+  editingId = id;
+  $("formTitle").textContent = "✏️ Редактирование этапа " + stage.position;
+  $("fSave").textContent = "Сохранить изменения";
+  $("fCancel").classList.remove("hidden");
+  setForm(stage.delay_seconds, stage.content_type, stage.content);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function saveStage() {
+  showMsg("formMsg", "");
+  const payload = {
+    delay_seconds: parseInt($("fDelay").value || "0", 10),
+    content_type: $("fType").value,
+    content: $("fContent").value
+  };
+  try {
+    if (editingId === null) {
+      await api("/api/stages", { method: "POST", body: JSON.stringify(payload) });
+    } else {
+      await api("/api/stages/" + editingId, { method: "PATCH", body: JSON.stringify(payload) });
+    }
+    cancelEdit();
+    await loadStages();
+    showMsg("formMsg", "Сохранено ✔", "ok");
+  } catch (e) {
+    showMsg("formMsg", e.message, "err");
+  }
+}
+
+async function moveStage(id, dir) {
+  try {
+    await api("/api/stages/" + id + "/move", { method: "POST", body: JSON.stringify({ direction: dir }) });
+    await loadStages();
+  } catch (e) { showMsg("listMsg", e.message, "err"); }
+}
+
+async function toggleStage(id) {
+  try {
+    await api("/api/stages/" + id + "/toggle", { method: "POST" });
+    await loadStages();
+  } catch (e) { showMsg("listMsg", e.message, "err"); }
+}
+
+async function delStage(id) {
+  if (!confirm("Удалить этап?")) return;
+  try {
+    await api("/api/stages/" + id, { method: "DELETE" });
+    if (editingId === id) cancelEdit();
+    await loadStages();
+  } catch (e) { showMsg("listMsg", e.message, "err"); }
+}
+
+async function runTest(live) {
+  showMsg("testMsg", "");
+  const chat_id = parseInt($("testChat").value, 10);
+  if (!chat_id) { showMsg("testMsg", "Введите Chat ID", "err"); return; }
+  try {
+    await api("/api/test", { method: "POST", body: JSON.stringify({ chat_id, live }) });
+    showMsg("testMsg", "Отправляю в чат " + chat_id + "… (проверьте Telegram)", "ok");
+  } catch (e) {
+    showMsg("testMsg", e.message, "err");
+  }
+}
+
+// стартовая загрузка: пробуем получить список — если 401, показываем логин
+api("/api/stages")
+  .then(data => { localStorage.setItem("stagesCache", JSON.stringify(data.stages)); showPanel(); })
+  .catch(() => showLogin());
+
+setInterval(() => { if (!$("panelView").classList.contains("hidden")) loadStatus(); }, 60000);
+</script>
+</body>
+</html>

@@ -28,10 +28,16 @@ class Config:
     bot_token: str
     admin_ids: frozenset = field(default_factory=frozenset)
     data_dir: Path = Path("bot_data")
+    web_port: int = 8080
+    web_password: str = ""
 
     @property
     def stages_path(self) -> Path:
         return self.data_dir / "stages.json"
+
+    @property
+    def password_path(self) -> Path:
+        return self.data_dir / "admin_password.txt"
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -47,4 +53,6 @@ class Config:
             bot_token=token,
             admin_ids=frozenset(parse_ids(os.getenv("ADMIN_ID", ""))),
             data_dir=Path(os.getenv("DATA_DIR", "bot_data")).expanduser(),
+            web_port=int(os.getenv("WEB_PORT", "8080") or 8080),
+            web_password=os.getenv("ADMIN_PASSWORD", "").strip(),
         )

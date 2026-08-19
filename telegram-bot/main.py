@@ -1,10 +1,14 @@
-"""Телеграм-бот: последовательность этапов после /start + админ-панель.
+"""Телеграм-бот с веб-панелью администратора.
+
+Один процесс, две вещи:
+  1. бот: polling Telegram, проигрывает этапы клиенту после /start;
+  2. веб-панель: http://<сервер>:<WEB_PORT> — настройка этапов в браузере
+     (работает без VPN и без доступа к Telegram — просто браузер).
 
 Запуск:
-    cp .env.example .env      # и вписать BOT_TOKEN
+    cp .env.example .env      # вписать BOT_TOKEN, при желании ADMIN_PASSWORD
     python main.py
-
-Или через Docker:
+Или Docker:
     docker compose up -d --build
 """
 from __future__ import annotations
@@ -12,10 +16,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import socket
+import time
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
+from uvicorn import Config as UvicornConfig
+from uvicorn import Server as UvicornServer
 
 from config import Config
 from handlers.admin import router as admin_router
@@ -23,6 +30,7 @@ from handlers.client import router as client_router
 from sender import StageSequencer
 from services import AdminService
 from storage import StageStorage
+from web_panel import create_app
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,10 +51,22 @@ class IPv4AiohttpSession(AiohttpSession):
         self._connector_init.setdefault("family", socket.AF_INET)
 
 
+async def poll_forever(bot: Bot, dp: Dispatcher) -> None:
+    """Polling с переподключением: обрыв сети не убивает бота."""
+    while True:
+        try:
+            # handle_signals=False: сигналы (Ctrl+C) обрабатывает uvicorn
+            await dp.start_polling(bot, handle_signals=False)
+            return  # polling остановлен штатно (shutdown)
+        except TelegramNetworkError:
+            log.error("Сеть недоступна — бот ЖИВ, переподключение через 15 секунд")
+            await asyncio.sleep(15)
+
+
 async def main() -> None:
     cfg = Config.from_env()
 
-    # Все логи дублируем в файл bot_data/bot.log — при ошибке его можно открыть и показать.
+    # Все логи дублируем в файл bot_data/bot.log — удобно при ошибках.
     cfg.data_dir.mkdir(parents=True, exist_ok=True)
     file_handler = logging.FileHandler(cfg.data_dir / "bot.log", encoding="utf-8")
     file_handler.setFormatter(
@@ -57,11 +77,40 @@ async def main() -> None:
     storage = StageStorage(cfg.stages_path)
     admin = AdminService(cfg.admin_ids)
     sequencer = StageSequencer(storage)
-
     bot = Bot(token=cfg.bot_token, session=IPv4AiohttpSession())
+
+    # Данные передаются в обработчики по именам параметров (workflow data).
+    dp = Dispatcher(stages=storage, admin=admin, sequencer=sequencer)
+    dp.include_router(admin_router)   # командная /admin — остаётся работать и в Telegram
+    dp.include_router(client_router)
+
+    started_at = time.time()
+    web_app = create_app(
+        cfg=cfg,
+        storage=storage,
+        bot=bot,
+        sequencer=sequencer,
+        admin=admin,
+        started_at=started_at,
+    )
+
+    log.info(
+        "Этапов: %d (включено: %d). Файл данных: %s",
+        len(storage.all()),
+        len(storage.ordered()),
+        cfg.stages_path,
+    )
+    log.info("Веб-панель: http://localhost:%d  (с других машин — http://<IP сервера>:%d)",
+             cfg.web_port, cfg.web_port)
+    if not cfg.admin_ids:
+        log.warning(
+            "ADMIN_ID не задан: в Telegram первым админом станет тот, кто пришлёт /admin. "
+            "Веб-панель защищена паролем (ADMIN_PASSWORD или bot_data/admin_password.txt)."
+        )
+
     try:
         me = await bot.me()
-        log.info("Бот @%s запущен", me.username)
+        log.info("Бот @%s подключён к Telegram", me.username)
     except TelegramUnauthorizedError:
         raise SystemExit(
             "Неверный BOT_TOKEN: Telegram вернул Unauthorized.\n"
@@ -72,33 +121,22 @@ async def main() -> None:
             "getMe не удалось: нет сети, или VPN/антивирус блокирует api.telegram.org. "
             "Продолжаю — polling будет повторять запросы."
         )
-    log.info(
-        "Этапов: %d (включено: %d). Файл данных: %s",
-        len(storage.all()),
-        len(storage.ordered()),
-        cfg.stages_path,
+
+    # Веб-сервер — основной цикл (корректно обрабатывает Ctrl+C и SIGTERM),
+    # polling Telegram идёт фоном отдельной задачей.
+    polling_task = asyncio.create_task(poll_forever(bot, dp), name="bot-polling")
+    server = UvicornServer(
+        UvicornConfig(web_app, host="0.0.0.0", port=cfg.web_port, log_level="warning")
     )
-    if not cfg.admin_ids:
-        log.warning(
-            "ADMIN_ID не задан: первый, кто пришлёт /admin, станет админом. "
-            "Лучше пропишите свой ID в .env."
-        )
-
-    # Данные передаются в обработчики по именам параметров (workflow data).
-    dp = Dispatcher(stages=storage, admin=admin, sequencer=sequencer)
-    dp.include_router(admin_router)   # сначала админ, затем клиент
-    dp.include_router(client_router)
-
-    # Polling: если сеть временно недоступна — бот не вылетает,
-    # а ждёт и переподключается (внутри polling сам ретраит getUpdates).
-    while True:
-        try:
-            # start_polling сам открывает/закрывает сессию бота при старте и стопе.
-            await dp.start_polling(bot)
-            return
-        except TelegramNetworkError:
-            log.error("Сеть недоступна — бот ЖИВ, переподключение через 15 секунд")
-            await asyncio.sleep(15)
+    try:
+        await server.serve()
+    finally:
+        if polling_task and not polling_task.done():
+            polling_task.cancel()
+            try:
+                await polling_task
+            except (asyncio.CancelledError, Exception):
+                pass
 
 
 if __name__ == "__main__":
