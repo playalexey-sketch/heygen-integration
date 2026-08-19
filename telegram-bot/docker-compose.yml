@@ -1,13 +1,26 @@
 services:
+  # ПРОЦЕСС 1: Telegram-бот (polling, отправка этапов клиентам)
   tg-bot:
     build: .
     container_name: tg-stage-bot
     restart: unless-stopped
+    command: python bot.py
     env_file:
       - .env
     environment:
-      # Каталог данных внутри контейнера; смонтирован на ./bot_data хоста,
-      # поэтому этапы переживут пересборку и обновление образа.
+      DATA_DIR: /app/bot_data
+    volumes:
+      - ./bot_data:/app/bot_data
+
+  # ПРОЦЕСС 2: веб-админ-панель (настройка этапов в браузере)
+  tg-admin:
+    build: .
+    container_name: tg-stage-admin
+    restart: unless-stopped
+    command: python admin.py
+    env_file:
+      - .env
+    environment:
       DATA_DIR: /app/bot_data
     volumes:
       - ./bot_data:/app/bot_data

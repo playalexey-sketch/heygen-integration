@@ -1,9 +1,9 @@
-"""Веб-панель администратора (FastAPI).
+"""Веб-панель администратора (FastAPI). Запускается отдельным процессом: python admin.py.
 
 Даёт весь функционал, который есть в командной /admin:
 этапы (добавить/редактировать/порядок/вкл-выкл/удалить), тест сценария.
 Настройки живут в том же stages.json, что и у бота — изменения
-подхватываются ботом мгновенно, без перезапуска.
+подхватываются ботом мгновенно, без перезапуска (бот перечитывает файл).
 """
 from __future__ import annotations
 
@@ -127,6 +127,7 @@ def create_app(
     @app.get("/api/stages")
     async def get_stages(request: Request):
         _auth(request)
+        storage.reload()  # актуальное состояние с диска (общий файл с ботом)
         return {"stages": [_stage_dict(i, s) for i, s in enumerate(storage.all(), 1)]}
 
     def _validate(delay_seconds, content_type: str, content: str) -> str:

@@ -114,6 +114,9 @@ class StageSequencer:
     async def _run(self, bot: Bot, chat_id: int) -> None:
         task = asyncio.current_task()
         try:
+            # Бот и админка — разные процессы: перечитываем актуальные
+            # настройки с диска перед отправкой (изменения действуют мгновенно).
+            self._storage.reload()
             stages = self._storage.ordered()
             if not stages:
                 await bot.send_message(
@@ -141,6 +144,7 @@ class StageSequencer:
 
 async def run_test(bot: Bot, chat_id: int, storage: StageStorage, live: bool) -> None:
     """Админ-прогон сценария: live=True — с реальными задержками, False — сразу."""
+    storage.reload()
     stages = storage.ordered()
     if not stages:
         await bot.send_message(chat_id, "🧪 Нет включённых этапов — добавьте их в /admin.")

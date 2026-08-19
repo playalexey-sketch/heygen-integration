@@ -110,6 +110,22 @@ class StageStorage:
 
     # ---------- чтение ----------
 
+    def reload(self) -> None:
+        """Перечитать файл с диска (изменения могли сделать в другом процессе:
+        админка и бот — отдельные процессы, общий источник правды — stages.json).
+        При ошибке чтения (файл перезаписывается прямо сейчас) оставляем копию в памяти.
+        """
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+            self.stages = [Stage.from_dict(d) for d in data.get("stages", [])]
+            self._next_id = int(data.get("next_id", 1))
+            if self.stages:
+                self._next_id = max(self._next_id, max(s.id for s in self.stages) + 1)
+        except FileNotFoundError:
+            pass
+        except Exception:
+            log.exception("reload %s не удался — работаю с копией в памяти", self.path)
+
     def all(self) -> list[Stage]:
         return list(self.stages)
 

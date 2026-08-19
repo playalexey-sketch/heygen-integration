@@ -136,6 +136,35 @@ def test_storage(tmp: Path):
     print("storage: OK")
 
 
+def test_cross_process_sync(tmp: Path):
+    """Бот и админка — разные процессы: админка изменила файл -> бот подхватил после reload."""
+    from storage import StageStorage
+
+    p = tmp / "sync.json"
+    admin_side = StageStorage(p)   # «процесс админки»
+    bot_side = StageStorage(p)     # «процесс бота» (своя копия в памяти)
+
+    assert len(bot_side.all()) == len(admin_side.all())
+    before = len(admin_side.all())
+
+    # админка добавляет этап — пишет в файл
+    admin_side.add(4, "text", "этап из админки")
+
+    # бот пока не видит (своя копия в памяти)
+    assert len(bot_side.all()) == before
+    # ...но перечитывает файл перед отправкой — и видит
+    bot_side.reload()
+    assert len(bot_side.all()) == before + 1
+    assert bot_side.all()[-1].content == "этап из админки"
+
+    # порядок: админка удаляет этап — бот подхватывает
+    victim = bot_side.all()[-2]
+    admin_side.remove(victim.id)
+    bot_side.reload()
+    assert bot_side.get(victim.id) is None
+    print("cross_process_sync: OK")
+
+
 def test_direct_file_url():
     from sender import is_direct_file_url
 
@@ -450,6 +479,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         test_storage(tmp / "s1")
+        test_cross_process_sync(tmp / "s5")
         test_direct_file_url()
         test_send_stage()
         test_sequencer(tmp / "s2")
