@@ -32,6 +32,14 @@ log = logging.getLogger("main")
 async def main() -> None:
     cfg = Config.from_env()
 
+    # Все логи дублируем в файл bot_data/bot.log — при ошибке его можно открыть и показать.
+    cfg.data_dir.mkdir(parents=True, exist_ok=True)
+    file_handler = logging.FileHandler(cfg.data_dir / "bot.log", encoding="utf-8")
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    )
+    logging.getLogger().addHandler(file_handler)
+
     storage = StageStorage(cfg.stages_path)
     admin = AdminService(cfg.admin_ids)
     sequencer = StageSequencer(storage)
@@ -77,3 +85,12 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         log.info("Остановка бота")
+    except SystemExit:
+        raise
+    except Exception:
+        log.exception("Бот упал с ошибкой")
+        print()
+        print("!!! BOT CRASHED. Full details in the log file:")
+        print("    bot_data\\bot.log")
+        print()
+        raise

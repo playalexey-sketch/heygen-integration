@@ -16,7 +16,7 @@ if %errorlevel% neq 0 (
   echo     PYTHON NOT FOUND.
   echo     Install Python 3.10+: https://www.python.org/downloads/
   echo     IMPORTANT: check the box "Add Python to PATH".
-  goto :finish
+  goto :stay_open
 )
 echo     found
 
@@ -29,7 +29,7 @@ if not exist venv\Scripts\python.exe (
     echo     is a store stub, not real Python.
     echo     Install from https://www.python.org/downloads/
     echo     and check the box "Add Python to PATH".
-    goto :finish
+    goto :stay_open
   )
   echo     OK
 ) else (
@@ -42,7 +42,7 @@ python -m pip install -q --upgrade pip
 python -m pip install -r requirements.txt
 if %errorlevel% neq 0 (
   echo     PIP FAILED - see errors above.
-  goto :finish
+  goto :stay_open
 )
 echo     OK
 
@@ -58,18 +58,36 @@ if %errorlevel% equ 0 (
   echo     Run:  notepad .env
   echo     Fill in BOT_TOKEN and ADMIN_ID, save,
   echo     then RUN run.bat AGAIN - the bot starts only then.
-  goto :finish
+  goto :stay_open
 )
 
 echo.
 echo [5/5] Starting bot, stop with Ctrl+C
 echo ------------------------------------------------------------
 python main.py
+set "EC=%errorlevel%"
 echo ------------------------------------------------------------
-echo     Bot stopped.
-goto :finish
-
-:finish
+if "%EC%"=="0" (
+  echo     Bot stopped by user. The window closes in 30 seconds.
+  goto :auto_close
+)
 echo.
-echo The window will close by itself in 20 seconds.
-timeout /t 20 >nul
+echo  !!! BOT CRASHED, exit code %EC% !!!
+echo  Full error details are saved in the file:  bot_data\bot.log
+echo  Open it:  notepad bot_data\bot.log
+echo  The window stays open - send me the last lines of the log.
+goto :stay_open
+
+:stay_open
+echo.
+echo The window stays open for 5 minutes, then closes.
+timeout /t 300 >nul
+goto :end
+
+:auto_close
+echo.
+timeout /t 30 >nul
+goto :end
+
+:end
+exit /b
