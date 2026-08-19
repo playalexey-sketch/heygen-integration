@@ -297,6 +297,7 @@ async function loadStatus() {
       "медиа: <b>" + (s.media_total || 0) + "</b> · " +
       "правил: <b>" + (s.rules_total || 0) + "</b> · " +
       "клиентов: <b>" + (s.crm_total || 0) + "</b> · " +
+      "админы: <b>" + (s.admins ? s.admins.join(", ") : "—") + "</b> · " +
       "аптайм: <b>" + up + " мин</b>";
   } catch (e) {}
 }

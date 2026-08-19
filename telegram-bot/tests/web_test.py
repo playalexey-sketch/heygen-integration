@@ -88,6 +88,7 @@ def run() -> None:
             # --- статус ---
             st = client.get("/api/status").json()
             assert st["bot"] == "@testbot" and "crm_total" in st and "rules_total" in st
+            assert st["admins"] == [1], "список админов в статусе"
             print("статус: OK")
 
             # --- этапы (read-only) ---

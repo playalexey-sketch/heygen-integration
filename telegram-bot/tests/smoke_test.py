@@ -531,7 +531,7 @@ def test_convo_and_replies(tmp: Path):
     print("convo_and_replies: OK")
 
 
-def test_admin_service():
+def test_admin_service(tmp: Path):
     from services import AdminService
 
     a = AdminService(frozenset({42}))
@@ -541,7 +541,88 @@ def test_admin_service():
     assert b.allow_anyone() and not b.is_admin(7)
     b.promote(7)
     assert b.is_admin(7) and not b.allow_anyone()
+
+    # файл admins.json: добавление/удаление/персистентность
+    f = tmp / "admins.json"
+    c = AdminService(frozenset({100}), f)
+    c.add_admin(200)
+    assert c.list_admins() == [{"id": 100, "from_env": True}, {"id": 200, "from_env": False}]
+    c2 = AdminService(frozenset({100}), f)  # новая инстанция: подхватила файл
+    assert c2.is_admin(200), "админ из файла не подхвачен"
+    assert c2.remove_admin(100) is False, "из .env нельзя удалить командой"
+    assert c2.is_admin(100)
+    assert c2.remove_admin(200) is True
+    assert not c2.is_admin(200)
+    c3 = AdminService(frozenset(), f)
+    c3.add_admin(300)
+    assert c3.remove_admin(300) is True
+    assert c3.allow_anyone() is True, "после удаления последнего — режим открыт"
     print("admin_service: OK")
+
+
+def test_admin_commands(tmp: Path):
+    from handlers.manager import cmd_addadmin, cmd_admins_list, cmd_delpadmin
+    from services import AdminService
+
+    async def run():
+        f = tmp / "ac_admins.json"
+        admin = AdminService(frozenset({10}), f)
+        bot = FakeBot()
+
+        m = FakeMessage(bot, "/addadmin 55", uid=7, cid=7)
+        await cmd_addadmin(m, admin)
+        assert any("Доступ запрещён" in a[0] for a in m.answers), "не-админу нельзя"
+        assert not admin.is_admin(55)
+
+        m = FakeMessage(bot, "/addadmin 55", uid=10, cid=10)
+        await cmd_addadmin(m, admin)
+        assert admin.is_admin(55) and any("Админ добавлен" in a[0] for a in m.answers)
+
+        m = FakeMessage(bot, "/admins", uid=10, cid=10)
+        await cmd_admins_list(m, admin)
+        assert "10" in m.answers[0][0] and "55" in m.answers[0][0]
+
+        m = FakeMessage(bot, "/delpadmin 55", uid=10, cid=10)
+        await cmd_delpadmin(m, admin)
+        assert not admin.is_admin(55)
+
+        m = FakeMessage(bot, "/delpadmin 10", uid=10, cid=10)
+        await cmd_delpadmin(m, admin)
+        assert admin.is_admin(10)
+        assert any(".env" in a[0] for a in m.answers)
+
+    asyncio.run(run())
+    print("admin_commands: OK")
+
+
+def test_multi_admin_forward(tmp: Path):
+    """Сообщение клиента должно уйти ВСЕМ админам (env + файл)."""
+    from config import Config
+    from convo import ConvoStorage
+    from content import ContentStorage
+    from crm import CrmStorage
+    from handlers.client import client_text
+    from services import AdminService
+
+    async def run():
+        admin = AdminService(frozenset({1}), tmp / "ma_admins.json")
+        admin.add_admin(2)
+        crm = CrmStorage(tmp / "ma_crm.json")
+
+        class U:
+            def __init__(self, i):
+                self.id = i; self.username = ""; self.first_name = "К"; self.last_name = ""
+        crm.upsert(U(555))
+        content = ContentStorage(tmp / "ma_content.json")
+        convo = ConvoStorage(tmp / "ma_chats.json")
+        bot = FakeBot()
+        msg = FakeMessage(bot, "тест", uid=555, cid=555)
+        await client_text(msg, admin, content, crm, convo, Config(bot_token="x", data_dir=tmp / "m"))
+        fw = sorted(x[1] for x in bot.sent if x[0] == "forward")
+        assert fw == [1, 2], f"форвард всем админам: {fw}"
+
+    asyncio.run(run())
+    print("multi_admin_forward: OK")
 
 
 def test_config():
@@ -809,10 +890,12 @@ def main():
         test_manager(tmp / "s8")
         test_bot_menu()
         test_convo_and_replies(tmp / "s9")
+        test_admin_commands(tmp / "s11")
+        test_multi_admin_forward(tmp / "s12")
         test_direct_file_url()
         test_send_stage()
         test_sequencer(tmp / "s2")
-        test_admin_service()
+        test_admin_service(tmp / "s13")
         test_config()
         test_client_flow(tmp / "s3")
         test_admin_flow(tmp / "s4")

@@ -69,6 +69,9 @@ BOT_COMMANDS = [
     ("tag", "добавить тег: /tag ID тег"),
     ("untag", "снять тег: /untag ID тег"),
     ("mail", "рассылка: /mail all|tag:X|src:X текст"),
+    ("admins", "список админов бота"),
+    ("addadmin", "добавить админа: /addadmin ID"),
+    ("delpadmin", "удалить админа: /delpadmin ID"),
     ("cancel", "отменить текущий мастер"),
 ]
 
@@ -123,7 +126,12 @@ ADMIN_HELP = (
     "✉️ РАССЫЛКИ\n"
     "/mail all текст — всем клиентам\n"
     "/mail tag:тег текст — по тегу\n"
-    "/mail src:источник текст — по источнику (youtube, vk, …)"
+    "/mail src:источник текст — по источнику (youtube, vk, …)\n"
+    "\n"
+    "👤 АДМИНЫ (видят все сообщения клиентов)\n"
+    "/admins — список\n"
+    "/addadmin ID — добавить (ID узнать у @userinfobot)\n"
+    "/delpadmin ID — удалить (только добавленных в боте)"
 )
 
 
@@ -581,6 +589,80 @@ async def cmd_untag(message: Message, admin: AdminService, crm: CrmStorage):
         await message.answer("Клиент не найден.")
     else:
         await message.answer(f"Тег снят. Осталось: {', '.join(rec.tags) or '—'}")
+
+
+# ----------------------------- админы -----------------------------
+
+@router.message(Command("admins"))
+async def cmd_admins_list(message: Message, admin: AdminService):
+    if not await guard_admin(message, admin):
+        return
+    lst = admin.list_admins()
+    if not lst:
+        await message.answer(
+            "Админов пока нет (режим «открыт»: первый /admin станет админом).\n"
+            "Добавить: /addadmin <ID>"
+        )
+        return
+    lines = ["👤 Админы бота (видят все сообщения клиентов):", ""]
+    for a in lst:
+        src = "(.env)" if a["from_env"] else "(добавлен в боте)"
+        lines.append(f"• ID {a['id']} — {src}")
+    lines += [
+        "",
+        "Добавить:  /addadmin <ID>   (ID узнать у @userinfobot)",
+        "Удалить:   /delpadmin <ID>  (только добавленных в боте; из .env — правкой .env)",
+    ]
+    await message.answer("\n".join(lines))
+
+
+@router.message(Command("addadmin"))
+async def cmd_addadmin(message: Message, admin: AdminService):
+    if not await guard_admin(message, admin):
+        return
+    parts = (message.text or "").split()
+    if len(parts) < 2 or not parts[1].lstrip("-").isdigit():
+        await message.answer(
+            "Формат: /addadmin <ID>\n"
+            "ID — числовой Telegram ID (узнать: напишите боту @userinfobot)."
+        )
+        return
+    uid = int(parts[1])
+    if uid <= 0:
+        await message.answer("ID должен быть положительным числом.")
+        return
+    if admin.is_admin(uid):
+        await message.answer("Этот пользователь уже админ.")
+        return
+    admin.add_admin(uid)
+    await message.answer(
+        f"✅ Админ добавлен: ID {uid}.\n"
+        "Теперь он видит: все сообщения клиентов (пересылкой), /chats, CRM, рассылки\n"
+        "и все команды управления. Удалить: /delpadmin " + str(uid)
+    )
+
+
+@router.message(Command("delpadmin"))
+async def cmd_delpadmin(message: Message, admin: AdminService):
+    if not await guard_admin(message, admin):
+        return
+    parts = (message.text or "").split()
+    if len(parts) < 2 or not parts[1].lstrip("-").isdigit():
+        await message.answer("Формат: /delpadmin <ID>")
+        return
+    uid = int(parts[1])
+    if not admin.is_admin(uid):
+        await message.answer("Такого админа нет. Список: /admins")
+        return
+    if uid in {a["id"] for a in admin.list_admins() if a["from_env"]}:
+        await message.answer(
+            f"ID {uid} задан в .env (ADMIN_ID) — уберите его там и перезапустите бота."
+        )
+        return
+    admin.remove_admin(uid)
+    left = admin.list_admins()
+    warn = "\n⚠️ Админов не осталось — следующий /admin снова станет админом." if not left else ""
+    await message.answer(f"🗑 Админ удалён: ID {uid}.{warn}")
 
 
 # ----------------------------- переписка -----------------------------

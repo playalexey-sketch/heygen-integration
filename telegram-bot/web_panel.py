@@ -119,6 +119,7 @@ def create_app(
             "media_total": len(content.all_media()),
             "rules_total": len(content.all_rules()),
             "crm_total": len(crm.all()),
+            "admins": [a["id"] for a in admin.list_admins()],
             "uptime_sec": int(time.time() - started_at),
             "web_password_set": bool(cfg.web_password),
         }

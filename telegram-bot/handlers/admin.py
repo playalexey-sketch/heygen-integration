@@ -225,8 +225,8 @@ async def guard_admin(message: Message, admin: AdminService) -> bool:
         admin.promote(uid)
         await message.answer(
             f"✅ Вы стали администратором бота (ID: {uid}).\n"
-            "Рекомендую прописать свой ID в ADMIN_ID в .env — так панель "
-            "будет доступна только вам."
+            "Рекомендую прописать свой ID в ADMIN_ID в .env (или просто запомнить: /admins).\n"
+            "Добавить второго админа: /addadmin <ID_второго_человека>"
         )
         return True
     await message.answer("⛔ Доступ запрещён.")

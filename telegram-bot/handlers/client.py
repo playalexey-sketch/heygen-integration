@@ -31,19 +31,20 @@ router = Router(name="client")
 HINT = "Просто нажмите /start — я пришлю всё по порядку 👌"
 
 
-async def _client_incoming(message: Message, convo: ConvoStorage, cfg, label: str | None = None) -> None:
-    """Каждое входящее от клиента: записать в переписку + переслать админам."""
+async def _client_incoming(message: Message, convo: ConvoStorage, admin: AdminService, label: str | None = None) -> None:
+    """Каждое входящее от клиента: записать в переписку + переслать ВСЕМ админам."""
     try:
         convo.add_message(message.chat.id, label or (message.text or "").strip(), DIR_IN)
     except Exception:
         log.exception("не удалось записать сообщение клиента в переписку")
-    if not cfg.admin_ids:
+    admins = admin.list_admins()
+    if not admins:
         return  # админы ещё не заданы — некуда пересылать
-    for aid in cfg.admin_ids:
+    for a in admins:
         try:
-            await message.bot.forward_message(aid, message.chat.id, message.message_id)
+            await message.bot.forward_message(a["id"], message.chat.id, message.message_id)
         except Exception:
-            log.exception("не удалось переслать сообщение клиента %s админу %s", message.chat.id, aid)
+            log.exception("не удалось переслать сообщение клиента %s админу %s", message.chat.id, a["id"])
 
 
 log = logging.getLogger("client")
@@ -169,8 +170,8 @@ async def client_text(
         crm.touch(message.from_user.id)
     except Exception:
         pass
-    # Вся переписка с клиентами — админу (форвард в чат с ботом + история в вебе)
-    await _client_incoming(message, convo, cfg)
+    # Вся переписка с клиентами — всем админам (форвард в чат с ботом + история в вебе)
+    await _client_incoming(message, convo, admin)
     # Слушаем, что ввёл клиент: если это ключевое слово — отправляем привязанный контент
     if await _apply_rules(message.bot, message.chat.id, message.text or "", content):
         return
@@ -210,4 +211,4 @@ async def client_media(
     else:
         doc = message.document
         label = f"[файл] {doc.file_name}" if doc and doc.file_name else media_label("document")
-    await _client_incoming(message, convo, cfg, label=label)
+    await _client_incoming(message, convo, admin, label=label)

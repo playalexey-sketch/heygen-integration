@@ -85,7 +85,7 @@ def setup(
     content = ContentStorage(cfg.data_dir / "content.json")
     crm = CrmStorage(cfg.data_dir / "crm.json")
     convo = ConvoStorage(cfg.data_dir / "chats.json")
-    admin = AdminService(cfg.admin_ids)
+    admin = AdminService(cfg.admin_ids, cfg.data_dir / "admins.json")
     sequencer = StageSequencer(storage, content)
 
     proxy = load_proxy(cfg)
