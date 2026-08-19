@@ -70,6 +70,36 @@
     background: var(--card2); border: 1px solid var(--line); border-radius: 8px;
     padding: 10px 14px; font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.5;
   }
+  .chats-wrap { display: flex; gap: 18px; align-items: stretch; }
+  .chats-list { flex: 0 0 320px; }
+  .chat-window { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .chats-list-items { max-height: 520px; overflow-y: auto; }
+  .chat-item {
+    padding: 10px 10px; border-bottom: 1px solid var(--line); cursor: pointer;
+    border-radius: 8px; font-size: 13px;
+  }
+  .chat-item:hover { background: var(--card2); }
+  .chat-item.active { background: var(--card2); outline: 1px solid var(--accent); }
+  .chat-item .t { font-weight: 600; }
+  .chat-item .p { color: var(--muted); margin-top: 2px; word-break: break-word; }
+  .chat-msgs {
+    flex: 1; overflow-y: auto; max-height: 420px; min-height: 200px;
+    background: #0b0f18; border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px; margin-bottom: 10px;
+  }
+  .bub {
+    max-width: 78%; padding: 8px 12px; border-radius: 12px; margin-bottom: 8px;
+    font-size: 14px; word-break: break-word; white-space: pre-wrap;
+  }
+  .bub .ts { display: block; font-size: 11px; opacity: .6; margin-top: 4px; }
+  .bub.in { background: var(--card2); border: 1px solid var(--line); margin-right: auto; }
+  .bub.out { background: #1d4ed8; margin-left: auto; }
+  .chat-input { display: flex; gap: 8px; }
+  .chat-input input { flex: 1; }
+  @media (max-width: 800px) {
+    .chats-wrap { flex-direction: column; }
+    .chats-list { flex: none; }
+  }
 </style>
 </head>
 <body>
@@ -115,10 +145,28 @@
 
     <!-- ====== ВКЛАДКИ ====== -->
     <div class="tabs">
-      <button id="tabbtn_stages" class="active" onclick="showTab('stages')">📋 Этапы</button>
+      <button id="tabbtn_chats" class="active" onclick="showTab('chats')">💬 Чаты</button>
+      <button id="tabbtn_stages" onclick="showTab('stages')">📋 Этапы</button>
       <button id="tabbtn_media" onclick="showTab('media')">🎬 Медиа</button>
       <button id="tabbtn_rules" onclick="showTab('rules')">🔑 Ссылки и правила</button>
       <button id="tabbtn_crm" onclick="showTab('crm')">👥 CRM (клиенты)</button>
+    </div>
+
+    <!-- ================= ЧАТЫ (переписка) ================= -->
+    <div id="tab_chats" class="chats-wrap">
+      <div class="chats-list card" style="margin-bottom:0;">
+        <h2>👥 Чаты клиентов</h2>
+        <div id="chatsList" class="chats-list-items">Загрузка…</div>
+      </div>
+      <div class="card chat-window">
+        <h2 id="chatTitle">Выберите чат слева</h2>
+        <div id="chatMsgs" class="chat-msgs"><p class="hint">Здесь появится переписка. Новые сообщения клиента появляются автоматически.</p></div>
+        <div class="chat-input">
+          <input type="text" id="chatInput" placeholder="Написать клиенту от имени бота…" onkeydown="if(event.key==='Enter')sendToClient()">
+          <button onclick="sendToClient()">Отправить</button>
+        </div>
+        <div class="msg" id="chatSendMsg"></div>
+      </div>
     </div>
 
     <!-- ================= ЭТАПЫ ================= -->
@@ -210,11 +258,14 @@ function showPanel() {
   $("panelView").classList.remove("hidden");
   loadAll();
 }
+let activeChatId = null;
+
 function showTab(name) {
-  ["stages", "media", "rules", "crm"].forEach(t => {
+  ["chats", "stages", "media", "rules", "crm"].forEach(t => {
     $("tab_" + t).classList.toggle("hidden", t !== name);
     $("tabbtn_" + t).classList.toggle("active", t === name);
   });
+  if (name === "chats") loadChats();
 }
 
 async function doLogin() {
@@ -372,15 +423,83 @@ async function loadCrm() {
   } catch (e) {}
 }
 
+// ---------- ЧАТЫ (переписка) ----------
+async function loadChats() {
+  try {
+    const d = await api("/api/chats");
+    const box = $("chatsList");
+    if (!d.chats.length) {
+      box.innerHTML = "<p class='hint'>Сообщений от клиентов пока нет. Как только клиент напишет боту — чат появится здесь и вам придёт пересылка в Telegram.</p>";
+      return;
+    }
+    box.innerHTML = "";
+    for (const c of d.chats) {
+      const el = document.createElement("div");
+      el.className = "chat-item" + (c.chat_id === activeChatId ? " active" : "");
+      const cinfo = c.client || {};
+      const title = cinfo.username ? ("@" + esc(cinfo.username)) : (cinfo.name || ("ID " + c.chat_id));
+      const who = c.last.direction === "out" ? "📤 " : "📥 ";
+      const prev = esc((c.last.text || "").split("\n")[0]).slice(0, 60);
+      el.innerHTML =
+        "<div class='t'>" + title + " <span class='hint'>(ID " + c.chat_id + ")</span></div>" +
+        "<div class='p'>" + who + " " + prev + " · " + esc(c.last.ts) + " · всего: " + c.count + "</div>";
+      el.onclick = () => openChat(c.chat_id);
+      box.appendChild(el);
+    }
+  } catch (e) {}
+}
+
+async function openChat(id) {
+  activeChatId = id;
+  loadChats();
+  await loadChatMsgs();
+}
+
+async function loadChatMsgs() {
+  if (activeChatId === null) return;
+  try {
+    const d = await api("/api/chat/" + activeChatId);
+    const c = d.client || {};
+    $("chatTitle").textContent = "💬 " + (c.username ? ("@" + c.username) : (c.name || ("ID " + d.chat_id)));
+    const box = $("chatMsgs");
+    const prev = box.scrollTop;
+    box.innerHTML = "";
+    for (const m of d.messages) {
+      const b = document.createElement("div");
+      b.className = "bub " + (m.direction === "out" ? "out" : "in");
+      b.innerHTML = esc(m.text) + "<span class='ts'>" + esc(m.ts) + "</span>";
+      box.appendChild(b);
+    }
+    box.scrollTop = box.scrollHeight;
+  } catch (e) {}
+}
+
+async function sendToClient() {
+  if (activeChatId === null) { showMsg("chatSendMsg", "Сначала выберите чат слева", "err"); return; }
+  const inp = $("chatInput");
+  const text = inp.value.trim();
+  if (!text) return;
+  showMsg("chatSendMsg", "Отправляю…");
+  try {
+    await api("/api/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: activeChatId, text }) });
+    inp.value = "";
+    showMsg("chatSendMsg", "Отправлено от имени бота ✔", "ok");
+    loadChatMsgs();
+  } catch (e) {
+    showMsg("chatSendMsg", e.message, "err");
+  }
+}
+
 async function loadAll() {
-  await Promise.all([loadStatus(), loadProxy(), loadStages(), loadMedia(), loadRules(), loadCrm()]);
+  await Promise.all([loadStatus(), loadProxy(), loadStages(), loadMedia(), loadRules(), loadCrm(), loadChats()]);
+  loadChatMsgs();
 }
 
 api("/api/stages")
   .then(() => showPanel())
   .catch(() => showLogin());
 
-setInterval(() => { if (!$("panelView").classList.contains("hidden")) loadAll(); }, 30000);
+setInterval(() => { if (!$("panelView").classList.contains("hidden")) loadAll(); }, 10000);
 </script>
 </body>
 </html>

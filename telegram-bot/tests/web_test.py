@@ -53,13 +53,15 @@ def run() -> None:
         cfg.data_dir.mkdir(parents=True, exist_ok=True)
         storage = StageStorage(tmp / "stages.json")
         from content import ContentStorage
+        from convo import ConvoStorage, DIR_IN
         from crm import CrmStorage
         content = ContentStorage(tmp / "data" / "content.json")
         crm = CrmStorage(tmp / "data" / "crm.json")
+        convo = ConvoStorage(tmp / "data" / "chats.json")
         bot = FakeBot()
         admin = AdminService(frozenset({1}))
         sequencer = StageSequencer(storage, content)
-        app = create_app(cfg, storage, content, crm, bot, sequencer, admin, started_at=time.time())
+        app = create_app(cfg, storage, content, crm, convo, bot, sequencer, admin, started_at=time.time())
 
         # данные, которые "сделал бот" в своём процессе:
         storage.add(5, "text", "Привет из бота")
@@ -129,6 +131,27 @@ def run() -> None:
             assert "proxy" in p
             assert client.post("/api/proxy", json={"proxy": "socks5://127.0.0.1:1"}).status_code == 405
             print("прокси read-only: OK")
+
+            # --- чаты/переписка ---
+            class U2:
+                id = 555
+                username = "ivan"
+                first_name = "Иван"
+                last_name = ""
+            crm.upsert(U2(), source="youtube")
+            convo.add_message(555, "привет бот", DIR_IN)
+            ch = client.get("/api/chats").json()
+            assert ch["chats"] and ch["chats"][0]["chat_id"] == 555
+            assert ch["chats"][0]["client"]["username"] == "ivan"
+            one = client.get("/api/chat/555").json()
+            assert one["messages"] and one["messages"][0]["text"] == "привет бот"
+            r = client.post("/api/send", json={"chat_id": 555, "text": "ответ админа"})
+            assert r.json() == {"ok": True}
+            assert any(s2[0] == "message" and s2[1] == 555 and s2[2] == "ответ админа" for s2 in bot.sent)
+            msgs = client.get("/api/chat/555").json()["messages"]
+            assert msgs[-1]["direction"] == "out"
+            assert client.post("/api/send", json={"chat_id": 999, "text": "x"}).status_code == 404
+            print("чаты/переписка: OK")
 
             # --- logout ---
             assert client.post("/api/logout").status_code == 200

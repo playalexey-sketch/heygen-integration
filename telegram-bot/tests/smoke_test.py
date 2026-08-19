@@ -43,6 +43,14 @@ class FakeBot:
         self.sent.append(("set_menu", len(commands), kw))
         return True
 
+    async def forward_message(self, chat_id, from_chat_id, message_id, **kw):
+        self.sent.append(("forward", chat_id, message_id, kw))
+        return None
+
+    async def copy_message(self, chat_id, from_chat_id, message_id, **kw):
+        self.sent.append(("copy", chat_id, message_id, kw))
+        return None
+
     async def send_message(self, chat_id, text, **kw):
         self.sent.append(("message", chat_id, text, kw))
         return "ok"
@@ -72,6 +80,8 @@ class FakeMessage:
         self.text = text
         self.from_user = FakeUser(uid)
         self.chat = FakeChat(cid, ctype)
+        self.message_id = 1
+        self.reply_to_message = None
         self.answers: list[tuple] = []
         self.edits: list[tuple] = []
 
@@ -463,6 +473,64 @@ def test_bot_menu():
     print("bot_menu: OK")
 
 
+def test_convo_and_replies(tmp: Path):
+    """Переписка: входящие -> админу, ответ по цитате -> клиенту."""
+    from aiogram.types import Chat as AChat, Message as AMessage, User as AUser
+    from convo import DIR_IN, DIR_OUT, ConvoStorage
+    from config import Config
+    from crm import CrmStorage
+    from handlers.client import client_text
+    from handlers.admin import admin_text
+    from services import AdminService
+
+    async def run():
+        convo = ConvoStorage(tmp / "chats.json")
+        crm = CrmStorage(tmp / "c_crm.json")
+        from content import ContentStorage
+        content = ContentStorage(tmp / "c_content.json")
+        cfg = Config(bot_token="x", data_dir=tmp / "d", admin_ids=frozenset({1}))
+        admin = AdminService(frozenset({1}))
+
+        class U:
+            def __init__(self, id): self.id = id; self.username = ""; self.first_name = "К"; self.last_name = ""
+        crm.upsert(U(555), source="youtube")
+
+        bot = FakeBot()
+        msg = FakeMessage(bot, "Здравствуйте, а сколько стоит?", uid=555, cid=555)
+        await client_text(msg, admin, content, crm, convo, cfg)
+        fw = [x for x in bot.sent if x[0] == "forward"]
+        assert fw and fw[0][1] == 1, "сообщение клиента не переслано админу"
+        ins = [m for m in convo.messages_for(555) if m.direction == DIR_IN]
+        assert ins and "сколько стоит" in ins[-1].text
+
+        from datetime import datetime
+        fwd_msg = AMessage(
+            message_id=77, date=datetime.now(), chat=AChat(id=1, type="private"),
+            forward_from=AUser(id=555, is_bot=False, first_name="К"),
+            text="Здравствуйте, а сколько стоит?",
+        )
+        amsg = FakeMessage(bot, "1000 рублей", uid=1, cid=1)
+        amsg.reply_to_message = fwd_msg
+        await admin_text(amsg, admin, crm, convo)
+        outs = [x for x in bot.sent if x[0] == "message"]
+        assert any(x[1] == 555 and "1000 рублей" in x[2] for x in outs), "ответ не ушёл клиенту"
+        outmsgs = [m for m in convo.messages_for(555) if m.direction == DIR_OUT]
+        assert outmsgs and "1000 рублей" in outmsgs[-1].text
+
+        amsg2 = FakeMessage(bot, "просто текст", uid=1, cid=1)
+        await admin_text(amsg2, admin, crm, convo)
+        assert any("/admin" in a[0] for a in amsg2.answers)
+        n_msg = len([x for x in bot.sent if x[0] == "message"])
+        assert n_msg == len(outs), "без цитаты клиенту не должно уходить ничего"
+
+        convo.reload()
+        sm = convo.summary()
+        assert len(sm) == 1 and sm[0]["chat_id"] == 555 and sm[0]["count"] == 2
+
+    asyncio.run(run())
+    print("convo_and_replies: OK")
+
+
 def test_admin_service():
     from services import AdminService
 
@@ -508,11 +576,15 @@ def test_client_flow(tmp: Path):
         st.add(0, "link", "https://disk.yandex.ru/d/xyz")
         st.add(0, "nickname", "@support_nik")
 
+        from config import Config
+        from convo import ConvoStorage
         from content import ContentStorage
         from crm import CrmStorage
         content = ContentStorage(tmp / "client_content.json")
         content.add_rule("123", "text", "Бонус по коду 123!")
         crm = CrmStorage(tmp / "client_crm.json")
+        crmconvo = ConvoStorage(tmp / "client_chats.json")
+        cfgc = Config(bot_token="x", data_dir=tmp / "cd", admin_ids=frozenset({999}))
 
         admin = AdminService(frozenset({999}))
         seq = StageSequencer(st, content)
@@ -540,13 +612,13 @@ def test_client_flow(tmp: Path):
         # клиент ввёл ключевое слово текстом -> сработало
         msg_kw = FakeMessage(bot, "123", uid=555, cid=200)
         from handlers.client import client_text
-        await client_text(msg_kw, admin, content, crm)
+        await client_text(msg_kw, admin, content, crm, crmconvo, cfgc)
         assert any("Бонус по коду 123!" in x[2] for x in bot.sent), "правило по введённому тексту не сработало"
         assert not msg_kw.answers, "при сработавшем правиле подсказка не нужна"
 
         # клиент ввёл что-то другое -> подсказка
         msg_other = FakeMessage(bot, "привет", uid=555, cid=200)
-        await client_text(msg_other, admin, content, crm)
+        await client_text(msg_other, admin, content, crm, crmconvo, cfgc)
         assert any("/start" in a[0] for a in msg_other.answers), "подсказка не пришла"
 
         # CRM: клиент записан, источник — код из deep-link
@@ -736,6 +808,7 @@ def main():
         test_crm_storage(tmp / "s7")
         test_manager(tmp / "s8")
         test_bot_menu()
+        test_convo_and_replies(tmp / "s9")
         test_direct_file_url()
         test_send_stage()
         test_sequencer(tmp / "s2")

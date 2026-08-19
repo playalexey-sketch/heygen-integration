@@ -43,6 +43,12 @@ class OfflineBot(Bot):
             return User(id=123456789, is_bot=True, first_name="intbot", username="intbot")
         if name == "SetMyCommands":
             return True
+        if name == "ForwardMessage":
+            self.sent.append(("forward_message", method.chat_id, method.message_id, {}))
+            return None
+        if name == "CopyMessage":
+            self.sent.append(("copy_message", method.chat_id, method.message_id, {}))
+            return None
         if name == "SendMessage":
             self.sent.append(
                 ("message", method.chat_id, method.text, {"reply_markup": method.reply_markup})
@@ -122,10 +128,13 @@ async def run() -> None:
         content.add_rule("777", "text", "Привет по коду 777!")
         crm = CrmStorage(Path(tmp) / "crm.json")
         from config import Config
+        from convo import ConvoStorage, DIR_IN
         from handlers.manager import router as manager_router
-        cfg = Config(bot_token="123:TEST", data_dir=Path(tmp) / "data")
+        cfg = Config(bot_token="123:TEST", data_dir=Path(tmp) / "data", admin_ids=frozenset({111}))
+        convo = ConvoStorage(Path(tmp) / "chats.json")
         dp = Dispatcher(
-            stages=storage, content=content, crm=crm, admin=admin, sequencer=sequencer, cfg=cfg
+            stages=storage, content=content, crm=crm, convo=convo,
+            admin=admin, sequencer=sequencer, cfg=cfg
         )
         dp.include_router(admin_router)
         dp.include_router(manager_router)
@@ -246,12 +255,42 @@ async def run() -> None:
         assert any("доставлено" in t for t in got), "нет отчёта"
         print("14. /crm + /mail рассылка: OK")
 
+        # ---------- 14b. клиент пишет -> форвард админу + запись в переписку ----------
+        n_fwd = len([x for x in bot.sent if x[0] == "forward_message"])
+        await dp.feed_update(bot, upd_message(555, 200, "А сколько стоит ваш сервис?"))
+        fw = [x for x in bot.sent if x[0] == "forward_message"]
+        assert len(fw) == n_fwd + 1, "сообщение клиента не переслано админу"
+        assert fw[-1][1] == 111, "форвард должен уйти админу"
+        assert convo.messages_for(200) and convo.messages_for(200)[-1].direction == DIR_IN
+        print("14b. клиент -> админ: форвард + переписка: OK")
+
         # ---------- 15. /help админу -> справочник; /setmenu -> меню команд ----------
         await dp.feed_update(bot, upd_message(111, 100, "/help"))
         assert any("СПРАВОЧНИК КОМАНД" in t for t in texts(bot, 100)), "нет справочника команд"
         await dp.feed_update(bot, upd_message(111, 100, "/setmenu"))
         assert any("Меню команд обновлено" in t for t in texts(bot, 100)[-1:]), "/setmenu не сработал"
         print("15. /help-справочник + /setmenu: OK")
+
+        # ---------- 15b. админ отвечает по цитате -> клиент получает от имени бота ----------
+        # (новый клиент: в личке Telegram ID пользователя == ID чата)
+        from aiogram.types import User as AUser
+        await dp.feed_update(bot, upd_message(777, 777, "/start"))
+        await dp.feed_update(bot, upd_message(777, 777, "А сколько стоит ваш сервис?"))
+        await asyncio.sleep(0.3)
+        fwd = Message(
+            message_id=501, date=datetime.now(timezone.utc), chat=Chat(id=100, type="private"),
+            forward_from=AUser(id=777, is_bot=False, first_name="Клиент"),
+            text="А сколько стоит ваш сервис?",
+        )
+        reply_msg = Message(
+            message_id=601, date=datetime.now(timezone.utc), chat=Chat(id=100, type="private"),
+            from_user=mk_user(111), text="1000 рублей в месяц", reply_to_message=fwd,
+        )
+        await dp.feed_update(bot, Update(update_id=78, message=reply_msg))
+        got = texts(bot, 777)
+        assert "1000 рублей в месяц" in got, "ответ по цитате не дошёл клиенту"
+        assert convo.messages_for(777)[-1].direction == "out"
+        print("15b. ответ админа по цитате -> клиент: OK")
 
         # ---------- 16. /setproxy ----------
         await dp.feed_update(bot, upd_message(111, 100, "/setproxy socks5://127.0.0.1:10808"))

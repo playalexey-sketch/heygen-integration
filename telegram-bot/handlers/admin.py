@@ -18,7 +18,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
+from convo import DIR_OUT, ConvoStorage, media_label
 from content import KIND_AUDIO, KIND_DOCUMENT, KIND_PHOTO, KIND_VIDEO, ContentStorage, guess_kind
+from crm import CrmStorage
 from sender import run_test
 from services import AdminService
 from storage import CONTENT_LINK, CONTENT_MEDIA, CONTENT_NICKNAME, CONTENT_TEXT, Stage, StageStorage
@@ -638,10 +640,60 @@ async def cb_test_live(cb: CallbackQuery, admin: AdminService, stages: StageStor
 
 # ----------------- текст админа вне мастера -----------------
 
+def _client_id_from_reply(message: Message) -> int | None:
+    """Если админ цитирует пересланное сообщение клиента — вернуть ID клиента."""
+    reply = message.reply_to_message
+    if reply is None:
+        return None
+    fwd = reply.forward_from
+    if fwd is not None and not fwd.is_bot:
+        return fwd.id
+    return None
+
+
 @router.message(IsAdmin(), F.text & ~F.text.startswith("/"), StateFilter(None))
-async def admin_text(message: Message):
-    # Для не-админов этот обработчик не срабатывает (фильтр IsAdmin) —
-    # событие дойдёт до клиентского обработчика, который подскажет /start.
+async def admin_text(message: Message, admin: AdminService, crm: CrmStorage, convo: ConvoStorage):
+    # Ответ от имени бота: админ цитирует (⇱) сообщение клиента и пишет текст.
+    client_id = _client_id_from_reply(message)
+    if client_id is not None and crm.get(client_id) is not None:
+        text = (message.text or "").strip()
+        if not text:
+            await message.answer("Нечего отправлять: напишите текст ответа.")
+            return
+        try:
+            await message.bot.send_message(client_id, text)
+        except Exception as e:
+            await message.answer(f"⚠️ Не удалось отправить клиенту (заблокировал бота?): {e}")
+            return
+        convo.add_message(client_id, text, DIR_OUT)
+        await message.answer(f"✅ Отправлено клиенту {client_id} от имени бота.")
+        return
     if message.chat.type != "private":
         return
     await message.answer("Для управления ботом используйте /admin 🙂")
+
+
+@router.message(IsAdmin(), F.photo | F.video | F.animation | F.audio | F.voice | F.document, StateFilter(None))
+async def admin_media(message: Message, admin: AdminService, crm: CrmStorage, convo: ConvoStorage):
+    """Ответ от имени бота медиа: цитата сообщения клиента + файл/фото/видео."""
+    client_id = _client_id_from_reply(message)
+    if client_id is None or crm.get(client_id) is None:
+        return  # не ответ клиенту — не трогаем (например, загрузка в /upmedia)
+    try:
+        await message.bot.copy_message(
+            chat_id=client_id,
+            from_chat_id=message.chat.id,
+            message_id=message.message_id,
+        )
+    except Exception as e:
+        await message.answer(f"⚠️ Не удалось отправить клиенту: {e}")
+        return
+    label = media_label(
+        "photo" if message.photo else "video" if message.video else "animation"
+        if message.animation else "audio" if message.audio else "voice"
+        if message.voice else "document"
+    )
+    if message.document and message.document.file_name:
+        label = f"[файл] {message.document.file_name}"
+    convo.add_message(client_id, label, DIR_OUT)
+    await message.answer(f"✅ Отправлено клиенту {client_id} от имени бота.")

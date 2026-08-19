@@ -48,9 +48,11 @@ async def poll_forever(bot: Bot, dp: Dispatcher, cfg: Config) -> None:
 
 async def main() -> None:
     cfg = Config.from_env()
-    storage, admin, sequencer, bot, content, crm = setup(cfg, log_name="bot.log")
+    storage, admin, sequencer, bot, content, crm, convo = setup(cfg, log_name="bot.log")
 
-    dp = Dispatcher(stages=storage, content=content, crm=crm, admin=admin, sequencer=sequencer, cfg=cfg)
+    dp = Dispatcher(
+        stages=storage, content=content, crm=crm, convo=convo, admin=admin, sequencer=sequencer, cfg=cfg
+    )
     dp.include_router(admin_router)      # Telegram-команды /admin (этапы, тесты)
     dp.include_router(manager_router)    # правила/ссылки, медиа, прокси, CRM, рассылки
     dp.include_router(client_router)

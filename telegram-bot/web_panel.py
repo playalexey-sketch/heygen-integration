@@ -21,6 +21,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from app_common import load_proxy
+from convo import DIR_IN, DIR_OUT, ConvoStorage, media_label
 from content import KIND_ICONS, ContentStorage
 from crm import CrmStorage
 from sender import StageSequencer
@@ -57,6 +58,7 @@ def create_app(
     storage: StageStorage,
     content: ContentStorage,
     crm: CrmStorage,
+    convo: ConvoStorage,
     bot: Bot,
     sequencer: StageSequencer,
     admin: AdminService,
@@ -226,6 +228,67 @@ def create_app(
                 for u in clients[:500]
             ],
         }
+
+    # --- переписка с клиентами ---
+
+    def _client_name(uid: int) -> dict:
+        rec = crm.get(uid)
+        if rec is None:
+            return {"name": "", "username": "", "id": uid}
+        return {
+            "id": rec.id,
+            "name": " ".join(x for x in [rec.first_name, rec.last_name] if x),
+            "username": rec.username,
+        }
+
+    @app.get("/api/chats")
+    async def get_chats(request: Request):
+        _auth(request)
+        convo.reload()
+        crm.reload()
+        return {
+            "chats": [
+                {
+                    **r,
+                    "client": _client_name(r["chat_id"]),
+                }
+                for r in convo.summary()
+            ]
+        }
+
+    @app.get("/api/chat/{chat_id}")
+    async def get_chat(chat_id: int, request: Request):
+        _auth(request)
+        convo.reload()
+        crm.reload()
+        return {
+            "chat_id": chat_id,
+            "client": _client_name(chat_id),
+            "messages": [m.to_dict() for m in convo.messages_for(chat_id, limit=200)],
+        }
+
+    @app.post("/api/send")
+    async def send_to_client(request: Request):
+        """Ответ админа клиенту ОТ ИМЕНИ БОТА (веб-форма переписки)."""
+        _auth(request)
+        b = await request.json()
+        try:
+            cid = int(b.get("chat_id", 0))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "chat_id — числовой ID клиента")
+        text = (b.get("text") or "").strip()
+        if not text:
+            raise HTTPException(400, "Пустое сообщение")
+        if len(text) > 4000:
+            raise HTTPException(400, "Слишком длинное сообщение (до 4000)")
+        if crm.get(cid) is None:
+            raise HTTPException(404, "Клиент не найден в CRM")
+        try:
+            await bot.send_message(cid, text)
+        except Exception as e:
+            raise HTTPException(502, f"Не удалось отправить: {e}")
+        convo.add_message(cid, text, DIR_OUT)
+        return {"ok": True}
 
     # --- страница ---
 

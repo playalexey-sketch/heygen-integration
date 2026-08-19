@@ -17,6 +17,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.filters.command import CommandObject
 from aiogram.types import CallbackQuery, Message
 
+from convo import DIR_IN, ConvoStorage, media_label
 from content import ContentStorage
 from crm import CrmStorage
 from sender import StageSequencer, send_rule_content
@@ -28,6 +29,21 @@ from .manager import ADMIN_HELP
 router = Router(name="client")
 
 HINT = "Просто нажмите /start — я пришлю всё по порядку 👌"
+
+
+async def _client_incoming(message: Message, convo: ConvoStorage, cfg, label: str | None = None) -> None:
+    """Каждое входящее от клиента: записать в переписку + переслать админам."""
+    try:
+        convo.add_message(message.chat.id, label or (message.text or "").strip(), DIR_IN)
+    except Exception:
+        log.exception("не удалось записать сообщение клиента в переписку")
+    if not cfg.admin_ids:
+        return  # админы ещё не заданы — некуда пересылать
+    for aid in cfg.admin_ids:
+        try:
+            await message.bot.forward_message(aid, message.chat.id, message.message_id)
+        except Exception:
+            log.exception("не удалось переслать сообщение клиента %s админу %s", message.chat.id, aid)
 
 
 log = logging.getLogger("client")
@@ -137,7 +153,14 @@ async def unknown_command(message: Message, admin: AdminService):
 
 
 @router.message(~IsAdmin(), F.text & ~F.text.startswith("/"))
-async def client_text(message: Message, admin: AdminService, content: ContentStorage, crm: CrmStorage):
+async def client_text(
+    message: Message,
+    admin: AdminService,
+    content: ContentStorage,
+    crm: CrmStorage,
+    convo: ConvoStorage,
+    cfg,
+):
     if not message.from_user or admin.is_admin(message.from_user.id):
         return
     if message.chat.type != "private":
@@ -146,7 +169,45 @@ async def client_text(message: Message, admin: AdminService, content: ContentSto
         crm.touch(message.from_user.id)
     except Exception:
         pass
+    # Вся переписка с клиентами — админу (форвард в чат с ботом + история в вебе)
+    await _client_incoming(message, convo, cfg)
     # Слушаем, что ввёл клиент: если это ключевое слово — отправляем привязанный контент
     if await _apply_rules(message.bot, message.chat.id, message.text or "", content):
         return
     await message.answer(HINT)
+
+
+@router.message(
+    ~IsAdmin(),
+    F.photo | F.video | F.animation | F.audio | F.voice | F.document,
+)
+async def client_media(
+    message: Message,
+    admin: AdminService,
+    crm: CrmStorage,
+    convo: ConvoStorage,
+    cfg,
+):
+    """Файлы от клиентов (фото/видео/аудио/документы): в переписку + админу."""
+    if not message.from_user or admin.is_admin(message.from_user.id):
+        return
+    if message.chat.type != "private":
+        return
+    try:
+        crm.touch(message.from_user.id)
+    except Exception:
+        pass
+    if message.photo:
+        label = media_label("photo")
+    elif message.video:
+        label = media_label("video")
+    elif message.animation:
+        label = media_label("animation")
+    elif message.audio:
+        label = media_label("audio")
+    elif message.voice:
+        label = media_label("voice")
+    else:
+        doc = message.document
+        label = f"[файл] {doc.file_name}" if doc and doc.file_name else media_label("document")
+    await _client_incoming(message, convo, cfg, label=label)

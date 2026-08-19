@@ -19,6 +19,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app_common import apply_proxy, load_proxy
+from convo import ConvoStorage
 from content import KIND_AUDIO, KIND_DOCUMENT, KIND_PHOTO, KIND_VIDEO, ContentStorage, guess_kind
 from crm import CrmStorage
 from services import AdminService
@@ -62,6 +63,8 @@ BOT_COMMANDS = [
     ("proxy", "текущий прокси (VPN)"),
     ("setproxy", "установить прокси: /setproxy socks5://127.0.0.1:10808"),
     ("setmenu", "обновить меню команд бота"),
+    ("chats", "чаты клиентов (список переписок)"),
+    ("chat", "переписка с клиентом: /chat ID"),
     ("crm", "база клиентов (CRM)"),
     ("tag", "добавить тег: /tag ID тег"),
     ("untag", "снять тег: /untag ID тег"),
@@ -103,6 +106,14 @@ ADMIN_HELP = (
     "🔌 ПОДКЛЮЧЕНИЕ (VPN)\n"
     "/proxy — текущий прокси\n"
     "/setproxy URL — установить (пусто = прямое)\n"
+    "\n"
+    "💬 ПЕРЕПИСКА С КЛИЕНТАМИ\n"
+    "Каждое сообщение клиента приходит вам пересылкой в этот чат.\n"
+    "Чтобы ответить от имени бота — цитируйте (⇱) его сообщение\n"
+    "и напишите текст (или отправьте файл, цитируя — уйдёт клиенту).\n"
+    "/chats — список чатов (по свежести)\n"
+    "/chat ID — последние сообщения с клиентом\n"
+    "(в вебе: вкладка «Чаты» — там же можно писать клиенту)\n"
     "\n"
     "👥 CRM (клиенты)\n"
     "/crm — база: откуда пришли, теги, активность\n"
@@ -570,6 +581,74 @@ async def cmd_untag(message: Message, admin: AdminService, crm: CrmStorage):
         await message.answer("Клиент не найден.")
     else:
         await message.answer(f"Тег снят. Осталось: {', '.join(rec.tags) or '—'}")
+
+
+# ----------------------------- переписка -----------------------------
+
+def _client_name(crm: CrmStorage, uid: int) -> str:
+    rec = crm.get(uid)
+    if rec is None:
+        return str(uid)
+    name = " ".join(x for x in [rec.first_name, rec.last_name] if x)
+    nick = f"@{rec.username}" if rec.username else ""
+    return f"{name} {nick}".strip() or str(uid)
+
+
+@router.message(Command("chats"))
+async def cmd_chats(message: Message, admin: AdminService, crm: CrmStorage, convo: ConvoStorage):
+    if not await guard_admin(message, admin):
+        return
+    convo.reload()
+    rows = convo.summary()
+    if not rows:
+        await message.answer(
+            "💬 Переписки пока нет.\n"
+            "Каждое сообщение клиента приходит вам сюда пересылкой; "
+            "ответ — цитируя (⇱) его сообщение."
+        )
+        return
+    lines = [f"💬 Чаты клиентов: {len(rows)} (по свежести):", ""]
+    for r in rows[:20]:
+        last = r["last"]
+        who = "📤 вы" if last["direction"] == "out" else "📥 клиент"
+        preview = " ".join(last["text"].split())
+        if len(preview) > 50:
+            preview = preview[:47] + "…"
+        lines.append(f"• {_client_name(crm, r['chat_id'])} (ID {r['chat_id']}) — {r['count']} сообщ.")
+        lines.append(f"    {who}, {last['ts']}: «{preview}»")
+    lines += [
+        "",
+        "Открыть переписку: /chat <ID>",
+        "Ответить: цитируйте (⇱) пересланное сообщение клиента и напишите текст.",
+        "В вебе — вкладка «💬 Чаты» (там же можно писать клиенту).",
+    ]
+    await message.answer("\n".join(lines))
+
+
+@router.message(Command("chat"))
+async def cmd_chat(message: Message, admin: AdminService, crm: CrmStorage, convo: ConvoStorage):
+    if not await guard_admin(message, admin):
+        return
+    parts = (message.text or "").split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        await message.answer("Формат: /chat <ID клиента>. Список ID — /chats")
+        return
+    cid = int(parts[1])
+    if crm.get(cid) is None:
+        await message.answer("Такого клиента нет в CRM. Список — /chats")
+        return
+    convo.reload()
+    msgs = convo.messages_for(cid, limit=25)
+    if not msgs:
+        await message.answer(f"💬 С клиентом {cid} сообщений ещё не было.")
+        return
+    lines = [f"💬 Переписка с {_client_name(crm, cid)} (ID {cid}), последние {len(msgs)}:", ""]
+    for m in msgs:
+        who = "📤 вы" if m.direction == "out" else "📥 клиент"
+        lines.append(f"{m.ts} {who}: {m.text}")
+    lines.append("")
+    lines.append("Ответить: /chat не нужен — просто цитируйте (⇱) его пересланное сообщение.")
+    await message.answer("\n".join(lines)[:4000])
 
 
 # ----------------------------- рассылки -----------------------------
